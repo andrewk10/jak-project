@@ -390,12 +390,8 @@
 (set! (-> *race-bike-b-constants* explosion) *bike-explosion-info*)
 
 (deftype errol-racer (vehicle-rider)
-  ((minimap connection-minimap  :offset-assert 224)
+  ((minimap  connection-minimap)
    )
-  :heap-base #x70
-  :method-count-assert 36
-  :size-assert         #xe4
-  :flag-assert         #x24007000e4
   )
 
 
@@ -404,29 +400,29 @@
               :bounds (static-spherem 0 2 0 3)
               )
 
-(defmethod initialize-collision errol-racer ((obj errol-racer))
-  (set! (-> obj level) (level-get *level* 'lerlchal))
-  (stack-size-set! (-> obj main-thread) 256)
-  (when (not (-> obj level))
+(defmethod initialize-collision ((this errol-racer))
+  (set! (-> this level) (level-get *level* 'lerlchal))
+  (stack-size-set! (-> this main-thread) 256)
+  (when (not (-> this level))
     (format 0 "errol-racer::initialize-collision: ERROR, no lerlchal level~%")
     (go process-drawable-art-error "no lerlchal level")
     )
-  (set! (-> obj root-override) (the-as collide-shape (new 'process 'trsqv)))
+  (set! (-> this root) (the-as collide-shape (new 'process 'trsqv)))
   0
   (none)
   )
 
-(defmethod vehicle-rider-method-32 errol-racer ((obj errol-racer) (arg0 traffic-object-spawn-params))
+(defmethod vehicle-rider-method-32 ((this errol-racer) (arg0 traffic-object-spawn-params))
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-errol-racer" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
-  (logior! (-> obj flags) 1)
-  (set! (-> obj draw lod-set lod 0 dist) 286720.0)
-  (vehicle-rider-method-33 obj)
-  (set! (-> obj minimap) (add-icon! *minimap* obj (the-as uint 38) (the-as int #f) (the-as vector #t) 0))
-  (set! (-> obj riding-anim) 4)
+  (logior! (-> this flags) 1)
+  (set! (-> this draw lod-set lod 0 dist) 286720.0)
+  (vehicle-rider-method-33 this)
+  (set! (-> this minimap) (add-icon! *minimap* this (the-as uint 38) (the-as int #f) (the-as vector #t) 0))
+  (set! (-> this riding-anim) 4)
   0
   (none)
   )
@@ -435,48 +431,29 @@
   :virtual #t
   :enter (behavior ()
     (format #t "errol-rider::got-passed~%")
-    (speech-control-method-12
-      *speech-control*
-      self
-      (speech-type speech-type-1 speech-type-2 speech-type-4 speech-type-5)
-      )
-    (none)
+    (speech-control-method-12 *speech-control* self (speech-type speech-type-54))
     )
   )
 
 (defstate taunt (errol-racer)
   :virtual #t
-  :event (the-as
-    (function process int symbol event-message-block object :behavior errol-racer)
-    vehicle-rider-event-handler
-    )
+  :event vehicle-rider-event-handler
   :enter (behavior ()
     (format #t "errol-rider::taunt race-errol-pass~%")
-    (speech-control-method-12
-      *speech-control*
-      self
-      (speech-type speech-type-0 speech-type-2 speech-type-4 speech-type-5)
-      )
-    (none)
+    (speech-control-method-12 *speech-control* self (speech-type speech-type-53))
     )
   :code (behavior ()
     (ja-channel-push! 1 (seconds 0.05))
     (cond
       ((zero? (rand-vu-int-count 2))
-       (ja-no-eval :group! (-> self draw art-group data 5)
-                   :num! (seek! (the float (+ (-> (the-as art-joint-anim (-> self draw art-group data 5)) frames num-frames) -1)))
-                   :frame-num 0.0
-                   )
+       (ja-no-eval :group! errol-racer-bike-taunt-left-ja :num! (seek!) :frame-num 0.0)
        (until (ja-done? 0)
          (suspend)
          (ja :num! (seek!))
          )
        )
       (else
-        (ja-no-eval :group! (-> self draw art-group data 6)
-                    :num! (seek! (the float (+ (-> (the-as art-joint-anim (-> self draw art-group data 6)) frames num-frames) -1)))
-                    :frame-num 0.0
-                    )
+        (ja-no-eval :group! errol-racer-bike-taunt-right-ja :num! (seek!) :frame-num 0.0)
         (until (ja-done? 0)
           (suspend)
           (ja :num! (seek!))
@@ -484,46 +461,35 @@
         )
       )
     (go-virtual active)
-    (none)
     )
   :post (behavior ()
-    (let* ((v1-0 (-> self parent-override))
-           (gp-0 (if v1-0
-                     (-> v1-0 0 self-override)
-                     )
-                 )
-           )
+    (let ((gp-0 (ppointer->process (-> self parent))))
       (when gp-0
-        (compute-seat-position gp-0 (-> self root-override trans) 0)
-        (quaternion-copy! (-> self root-override quat) (-> gp-0 root-override-2 quat))
+        (compute-seat-position gp-0 (-> self root trans) 0)
+        (quaternion-copy! (-> self root quat) (-> gp-0 root quat))
         )
       )
     (ja-post)
-    (none)
     )
   )
 
 (deftype vehicle-city-racer (vehicle-racer)
   ()
-  :heap-base #x380
-  :method-count-assert 156
-  :size-assert         #x3f8
-  :flag-assert         #x9c038003f8
   )
 
 
-(defmethod vehicle-method-117 vehicle-city-racer ((obj vehicle-city-racer) (arg0 vector) (arg1 int) (arg2 int))
-  ((method-of-type vehicle vehicle-method-117) obj arg0 arg1 arg2)
+(defmethod vehicle-method-117 ((this vehicle-city-racer) (arg0 vector) (arg1 int) (arg2 int))
+  ((method-of-type vehicle vehicle-method-117) this arg0 arg1 arg2)
   0
   (none)
   )
 
-(defmethod vehicle-method-137 vehicle-city-racer ((obj vehicle-city-racer) (arg0 traffic-object-spawn-params))
+(defmethod vehicle-method-137 ((this vehicle-city-racer) (arg0 traffic-object-spawn-params))
   (let ((t9-0 vehicle-rider-spawn)
         (v1-0 (-> arg0 user-data))
         )
     (t9-0
-      obj
+      this
       (if (= v1-0 2)
           errol-racer
           citizen-norm-rider
@@ -535,33 +501,33 @@
   (none)
   )
 
-(defmethod vehicle-racer-method-154 vehicle-city-racer ((obj vehicle-city-racer))
+(defmethod vehicle-racer-method-154 ((this vehicle-city-racer))
   (cond
-    ((logtest? (-> obj rbody state flags) (rigid-body-flag enable-physics))
+    ((logtest? (-> this rbody state flags) (rigid-body-flag enable-physics))
      (let ((f0-0 368640.0))
-       (if (or (< (* f0-0 f0-0) (-> obj player-dist2))
+       (if (or (< (* f0-0 f0-0) (-> this player-dist2))
                (let ((f0-3 102400.0))
-                 (and (< (* f0-3 f0-3) (-> obj player-dist2))
-                      (zero? (logand (-> obj draw status) (draw-control-status on-screen)))
+                 (and (< (* f0-3 f0-3) (-> this player-dist2))
+                      (not (logtest? (-> this draw status) (draw-control-status on-screen)))
                       )
                  )
                )
-           (rigid-body-object-method-39 obj)
+           (rigid-body-object-method-39 this)
            )
        )
      )
     (else
-      (let ((f0-6 (-> obj player-dist2))
+      (let ((f0-6 (-> this player-dist2))
             (f1-2 348160.0)
             )
         (if (and (< f0-6 (* f1-2 f1-2))
-                 (let ((f0-7 (-> obj player-dist2))
+                 (let ((f0-7 (-> this player-dist2))
                        (f1-5 81920.0)
                        )
-                   (or (< f0-7 (* f1-5 f1-5)) (logtest? (-> obj draw status) (draw-control-status on-screen)))
+                   (or (< f0-7 (* f1-5 f1-5)) (logtest? (-> this draw status) (draw-control-status on-screen)))
                    )
                  )
-            (rigid-body-object-method-38 obj)
+            (rigid-body-object-method-38 this)
             )
         )
       )
@@ -572,20 +538,16 @@
 
 (deftype race-bike-a (vehicle-city-racer)
   ()
-  :heap-base #x380
-  :method-count-assert 156
-  :size-assert         #x3f8
-  :flag-assert         #x9c038003f8
   )
 
 
 ;; WARN: Return type mismatch vehicle-city-racer vs race-bike-a.
-(defmethod relocate race-bike-a ((obj race-bike-a) (arg0 int))
-  (the-as race-bike-a ((method-of-type vehicle-city-racer relocate) obj arg0))
+(defmethod relocate ((this race-bike-a) (arg0 int))
+  (the-as race-bike-a ((method-of-type vehicle-city-racer relocate) this arg0))
   )
 
-(defmethod allocate-and-init-cshape race-bike-a ((obj race-bike-a))
-  (let ((s5-0 (new 'process 'collide-shape-moving obj (collide-list-enum usually-hit-by-player))))
+(defmethod allocate-and-init-cshape ((this race-bike-a))
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
     (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s5-0 reaction) cshape-reaction-default)
     (set! (-> s5-0 no-reaction)
@@ -631,41 +593,37 @@
       (set! (-> s5-0 backup-collide-with) (-> v1-21 prim-core collide-with))
       )
     (set! (-> s5-0 nav-flags) (nav-flags has-child-spheres))
-    (set! (-> obj root-override-2) s5-0)
+    (set! (-> this root) s5-0)
     )
   0
   (none)
   )
 
-(defmethod init-skel-and-rigid-body race-bike-a ((obj race-bike-a))
+(defmethod init-skel-and-rigid-body ((this race-bike-a))
   (lwide-entity-hack)
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-bikea" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
-  (set! (-> obj rider-hand-joint) 0)
-  (alloc-and-init-rigid-body-control obj *race-bike-a-constants*)
+  (set! (-> this rider-hand-joint) 0)
+  (alloc-and-init-rigid-body-control this *race-bike-a-constants*)
   0
   (none)
   )
 
 (deftype race-bike-b (vehicle-city-racer)
   ()
-  :heap-base #x380
-  :method-count-assert 156
-  :size-assert         #x3f8
-  :flag-assert         #x9c038003f8
   )
 
 
 ;; WARN: Return type mismatch vehicle-racer vs race-bike-b.
-(defmethod relocate race-bike-b ((obj race-bike-b) (arg0 int))
-  (the-as race-bike-b ((method-of-type vehicle-racer relocate) obj arg0))
+(defmethod relocate ((this race-bike-b) (arg0 int))
+  (the-as race-bike-b ((method-of-type vehicle-racer relocate) this arg0))
   )
 
-(defmethod allocate-and-init-cshape race-bike-b ((obj race-bike-b))
-  (let ((s5-0 (new 'process 'collide-shape-moving obj (collide-list-enum usually-hit-by-player))))
+(defmethod allocate-and-init-cshape ((this race-bike-b))
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
     (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s5-0 reaction) cshape-reaction-default)
     (set! (-> s5-0 no-reaction)
@@ -711,101 +669,96 @@
       (set! (-> s5-0 backup-collide-with) (-> v1-21 prim-core collide-with))
       )
     (set! (-> s5-0 nav-flags) (nav-flags has-child-spheres))
-    (set! (-> obj root-override-2) s5-0)
+    (set! (-> this root) s5-0)
     )
   0
   (none)
   )
 
-(defmethod init-skel-and-rigid-body race-bike-b ((obj race-bike-b))
+(defmethod init-skel-and-rigid-body ((this race-bike-b))
   (lwide-entity-hack)
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-bikeb" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
-  (set! (-> obj rider-hand-joint) 0)
-  (alloc-and-init-rigid-body-control obj *race-bike-b-constants*)
+  (set! (-> this rider-hand-joint) 0)
+  (alloc-and-init-rigid-body-control this *race-bike-b-constants*)
   0
   (none)
   )
 
 (deftype turbo-ring (process-drawable)
-  ((root-override collide-shape              :offset        128)
-   (touch-time    time-frame                 :offset-assert 200)
-   (minimap       connection-minimap         :offset-assert 208)
-   (player-got    symbol                     :offset-assert 212)
-   (persistent    symbol                     :offset-assert 216)
-   (id            int8                       :offset-assert 220)
-   (boost         float                      :offset-assert 224)
-   (plane         vector             :inline :offset-assert 240)
-   (part-track    handle                     :offset-assert 256)
-   (mat           matrix             :inline :offset-assert 272)
+  ((root        collide-shape :override)
+   (touch-time  time-frame)
+   (minimap     connection-minimap)
+   (player-got  symbol)
+   (persistent  symbol)
+   (id          int8)
+   (boost       float)
+   (plane       vector         :inline)
+   (part-track  handle)
+   (mat         matrix         :inline)
    )
-  :heap-base #xd0
-  :method-count-assert 25
-  :size-assert         #x150
-  :flag-assert         #x1900d00150
+  (:state-methods
+    idle
+    die
+    )
   (:methods
-    (idle () _type_ :state 20)
-    (die () _type_ :state 21)
-    (turbo-ring-method-22 (_type_) none 22)
-    (turbo-ring-method-23 (_type_) none 23)
-    (turbo-ring-method-24 (_type_) none 24)
+    (turbo-ring-method-22 (_type_) none)
+    (turbo-ring-method-23 (_type_) none)
+    (turbo-ring-method-24 (_type_) none)
     )
   )
 
 
 (defstate idle (turbo-ring)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (the-as
-      object
-      (case event-type
-        (('touched)
-         (let* ((s4-0 (-> (the-as vehicle proc) root-override-2))
-                (gp-0 (if (type? s4-0 collide-shape-moving)
-                          s4-0
-                          )
-                      )
-                )
-           (when gp-0
-             (let ((s4-1 (new 'stack-no-clear 'vehicle-control-point)))
-               (set! (-> s4-1 local-pos quad) (-> gp-0 trans quad))
-               (set! (-> s4-1 normal quad) (-> gp-0 trans-old-old quad))
-               (set! (-> s4-1 local-pos w) 1.0)
-               (set! (-> s4-1 normal w) 1.0)
-               (let ((f30-0 (vector4-dot (-> self plane) (-> s4-1 local-pos)))
-                     (f28-0 (vector4-dot (-> self plane) (-> s4-1 normal)))
-                     (f0-5 (fmax
-                             (vector-vector-distance-squared (-> self root-override trans) (-> s4-1 local-pos))
-                             (vector-vector-distance-squared (-> self root-override trans) (-> s4-1 normal))
-                             )
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('touched)
+       (let* ((s4-0 (-> (the-as vehicle proc) root))
+              (gp-0 (if (type? s4-0 collide-shape-moving)
+                        s4-0
+                        )
+                    )
+              )
+         (when gp-0
+           (let ((s4-1 (new 'stack-no-clear 'vehicle-control-point)))
+             (set! (-> s4-1 local-pos quad) (-> gp-0 trans quad))
+             (set! (-> s4-1 normal quad) (-> gp-0 trans-old-old quad))
+             (set! (-> s4-1 local-pos w) 1.0)
+             (set! (-> s4-1 normal w) 1.0)
+             (let ((f30-0 (vector4-dot (-> self plane) (-> s4-1 local-pos)))
+                   (f28-0 (vector4-dot (-> self plane) (-> s4-1 normal)))
+                   (f0-5 (fmax
+                           (vector-vector-distance-squared (-> self root trans) (-> s4-1 local-pos))
+                           (vector-vector-distance-squared (-> self root trans) (-> s4-1 normal))
                            )
-                     (f1-0 40960.0)
+                         )
+                   (f1-0 40960.0)
+                   )
+               (when (< f0-5 (* f1-0 f1-0))
+                 (when (or (and (< f30-0 0.0) (>= f28-0 0.0)) (and (< f28-0 0.0) (>= f30-0 0.0)))
+                   (send-event proc 'turbo-ring (-> self boost))
+                   (set-time! (-> self touch-time))
+                   (process-spawn
+                     part-tracker
+                     :init part-tracker-init
+                     (-> *part-group-id-table* 1059)
+                     0
+                     #f
+                     #f
+                     #f
+                     (-> self mat)
+                     :to *entity-pool*
                      )
-                 (when (< f0-5 (* f1-0 f1-0))
-                   (when (or (and (< f30-0 0.0) (>= f28-0 0.0)) (and (< f28-0 0.0) (>= f30-0 0.0)))
-                     (send-event proc 'turbo-ring (-> self boost))
-                     (set! (-> self touch-time) (-> self clock frame-counter))
-                     (process-spawn
-                       part-tracker
-                       :init part-tracker-init
-                       (-> *part-group-id-table* 1059)
-                       0
-                       #f
-                       #f
-                       #f
-                       (-> self mat)
-                       :to *entity-pool*
-                       )
-                     (when (logtest? (-> gp-0 root-prim prim-core collide-as) (collide-spec jak))
-                       (set! (-> self player-got) #t)
-                       (send-event (ppointer->process (-> self parent)) 'turbo-ring-pickup (-> self id))
-                       (if (not (-> self persistent))
-                           (the-as symbol (kill-callback (-> *minimap* engine) (-> self minimap)))
-                           )
-                       )
+                   (when (logtest? (-> gp-0 root-prim prim-core collide-as) (collide-spec jak))
+                     (set! (-> self player-got) #t)
+                     (send-event (ppointer->process (-> self parent)) 'turbo-ring-pickup (-> self id))
+                     (if (not (-> self persistent))
+                         (kill-callback (-> *minimap* engine) (-> self minimap))
+                         )
                      )
                    )
                  )
@@ -813,17 +766,16 @@
              )
            )
          )
-        )
+       )
       )
     )
-  :code (the-as (function none :behavior turbo-ring) sleep-code)
+  :code sleep-code
   :post (behavior ()
     (if (and (-> self player-got)
-             (>= (- (-> self clock frame-counter) (-> self touch-time)) (seconds 3))
-             (or (not *target*)
-                 (or (< 204800.0 (vector-vector-distance (-> self root-override trans) (-> *target* control trans)))
-                     (logtest? (focus-status teleporting) (-> *target* focus-status))
-                     )
+             (time-elapsed? (-> self touch-time) (seconds 3))
+             (or (not *target*) (or (< 204800.0 (vector-vector-distance (-> self root trans) (-> *target* control trans)))
+                                    (focus-test? *target* teleporting)
+                                    )
                  )
              (not (-> self persistent))
              )
@@ -831,28 +783,26 @@
         )
     (spawn-with-matrix (-> self part) (-> self mat))
     0
-    (none)
     )
   )
 
 (defstate die (turbo-ring)
   :virtual #t
   :code (behavior ()
-    (set! (-> self state-time) (-> self clock frame-counter))
-    (let ((v1-3 (-> self root-override root-prim)))
+    (set-time! (-> self state-time))
+    (let ((v1-3 (-> self root root-prim)))
       (set! (-> v1-3 prim-core collide-as) (collide-spec))
       (set! (-> v1-3 prim-core collide-with) (collide-spec))
       )
     0
-    (until (>= (- (-> self clock frame-counter) (-> self state-time)) (seconds 2))
+    (until (time-elapsed? (-> self state-time) (seconds 2))
       (suspend)
       )
-    (none)
     )
   )
 
-(defmethod turbo-ring-method-22 turbo-ring ((obj turbo-ring))
-  (let ((s5-0 (new 'process 'collide-shape obj (collide-list-enum usually-hit-by-player))))
+(defmethod turbo-ring-method-22 ((this turbo-ring))
+  (let ((s5-0 (new 'process 'collide-shape this (collide-list-enum usually-hit-by-player))))
     (set! (-> s5-0 penetrate-using) (the-as penetrate -1))
     (set! (-> s5-0 penetrated-by) (the-as penetrate -1))
     (let ((v1-4 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
@@ -867,41 +817,39 @@
       (set! (-> s5-0 backup-collide-with) (-> v1-7 prim-core collide-with))
       )
     (set! (-> s5-0 event-self) 'touched)
-    (set! (-> obj root-override) s5-0)
+    (set! (-> this root) s5-0)
     )
   0
   (none)
   )
 
-(defmethod turbo-ring-method-23 turbo-ring ((obj turbo-ring))
-  (with-pp
-    (let ((s5-0 (-> obj mat)))
-      (let ((s4-0 (new 'stack-no-clear 'quaternion)))
-        (quaternion-rotate-local-y! s4-0 (-> obj root-override quat) 16384.0)
-        (quaternion->matrix s5-0 s4-0)
-        )
-      (set! (-> s5-0 trans quad) (-> obj root-override trans quad))
-      (set! (-> obj plane quad) (-> s5-0 vector 0 quad))
+(defmethod turbo-ring-method-23 ((this turbo-ring))
+  (let ((s5-0 (-> this mat)))
+    (let ((s4-0 (new 'stack-no-clear 'quaternion)))
+      (quaternion-rotate-local-y! s4-0 (-> this root quat) 16384.0)
+      (quaternion->matrix s5-0 s4-0)
       )
-    (set! (-> obj plane w) (- (vector-dot (-> obj plane) (-> obj root-override trans))))
-    (update-transforms (-> obj root-override))
-    (set! (-> obj player-got) #f)
-    (set! (-> obj part) (create-launch-control (-> *part-group-id-table* 1058) obj))
-    (if (not (-> obj persistent))
-        (set! (-> obj minimap) (add-icon! *minimap* obj (the-as uint 15) (the-as int #f) (the-as vector #t) 0))
-        )
-    (set! (-> obj touch-time) (-> pp clock frame-counter))
-    0
-    (none)
+    (set! (-> s5-0 trans quad) (-> this root trans quad))
+    (set! (-> this plane quad) (-> s5-0 vector 0 quad))
     )
+  (set! (-> this plane w) (- (vector-dot (-> this plane) (-> this root trans))))
+  (update-transforms (-> this root))
+  (set! (-> this player-got) #f)
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 1058) this))
+  (if (not (-> this persistent))
+      (set! (-> this minimap) (add-icon! *minimap* this (the-as uint 15) (the-as int #f) (the-as vector #t) 0))
+      )
+  (set-time! (-> this touch-time))
+  0
+  (none)
   )
 
 ;; WARN: Return type mismatch object vs none.
 (defbehavior turbo-ring-init-by-other turbo-ring ((arg0 city-race-ring-info) (arg1 int) (arg2 symbol))
   (turbo-ring-method-22 self)
-  (set! (-> self root-override trans quad) (-> arg0 pos quad))
-  (set! (-> self root-override trans y) (+ 10240.0 (-> self root-override trans y)))
-  (quaternion-axis-angle! (-> self root-override quat) 0.0 1.0 0.0 (-> arg0 pos w))
+  (set! (-> self root trans quad) (-> arg0 pos quad))
+  (+! (-> self root trans y) 10240.0)
+  (quaternion-axis-angle! (-> self root quat) 0.0 1.0 0.0 (-> arg0 pos w))
   (set! (-> self boost) (-> arg0 boost))
   (set! (-> self id) arg1)
   (set! (-> self persistent) arg2)
@@ -1139,172 +1087,162 @@
 
 (set-subtask-hook!
   *game-info*
-  189
-  0
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ()
-      (set-setting! 'minimap 'clear 0 32)
-      (set-setting! 'exclusive-task #f 0 (-> self node-info task))
-      (let ((gp-0 *traffic-manager*))
-        (send-event gp-0 'set-target-level #x3e800000)
-        (send-event gp-0 'set-guard-target-count-range 0 0 0)
-        (send-event gp-0 'set-guard-target-count-range 1 0 0)
-        (send-event gp-0 'set-guard-target-count-range 2 0 0)
-        (send-event gp-0 'set-guard-target-count-range 3 0 0)
-        (send-event gp-0 'set-guard-target-count-range 4 0 1)
-        (send-event gp-0 'set-guard-target-count-range 5 0 0)
-        )
-      (until (= (level-status *level* 'ctyport) 'active)
-        (suspend)
-        )
-      (let ((v1-43 (entity-by-name "parking-spot-20")))
-        (if v1-43
-            (logior! (-> v1-43 extra perm status) (entity-perm-status bit-9))
-            )
-        )
-      (set! (-> self start-time) 0)
-      (set! (-> self sub-state) (the-as uint 0))
-      (set! (-> self count) 0)
-      (set! (-> self max-count) -1)
-      (race-start (-> self info index) (the-as symbol self) #f)
-      (set! (-> self begin-pos quad)
-            (-> (new 'static 'vector :x -326041.6 :y 36454.4 :z 5391565.0 :w 266240.0) quad)
-            )
-      (set-setting! 'attack #f 0 0)
-      (set-setting! 'board #f 0 0)
-      (set-setting! 'gun #f 0 0)
-      (set-setting! 'vehicle-hijacking #f 0 0)
-      (none)
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_INIT_HOOK
+  (lambda :behavior task-manager
+    ()
+    (set-setting! 'minimap 'clear 0.0 (minimap-flag task-graph))
+    (set-setting! 'exclusive-task #f 0.0 (-> self node-info task))
+    (let ((gp-0 *traffic-manager*))
+      (send-event gp-0 'set-target-level 0.25)
+      (send-event gp-0 'set-guard-target-count-range 0 0 0)
+      (send-event gp-0 'set-guard-target-count-range 1 0 0)
+      (send-event gp-0 'set-guard-target-count-range 2 0 0)
+      (send-event gp-0 'set-guard-target-count-range 3 0 0)
+      (send-event gp-0 'set-guard-target-count-range 4 0 1)
+      (send-event gp-0 'set-guard-target-count-range 5 0 0)
       )
+    (until (= (level-status *level* 'ctyport) 'active)
+      (suspend)
+      )
+    (let ((v1-43 (entity-by-name "parking-spot-20")))
+      (if v1-43
+          (logior! (-> v1-43 extra perm status) (entity-perm-status bit-9))
+          )
+      )
+    (set! (-> self start-time) 0)
+    (set! (-> self sub-state) (the-as uint 0))
+    (set! (-> self count) 0)
+    (set! (-> self max-count) -1)
+    (race-start (-> self info index) self #f)
+    (set! (-> self begin-pos quad)
+          (-> (new 'static 'vector :x -326041.6 :y 36454.4 :z 5391565.0 :w 266240.0) quad)
+          )
+    (set-setting! 'attack #f 0.0 0)
+    (set-setting! 'board #f 0.0 0)
+    (set-setting! 'gun #f 0.0 0)
+    (set-setting! 'vehicle-hijacking #f 0.0 0)
+    (none)
     )
   )
 
 (set-subtask-hook!
   *game-info*
-  189
-  1
-  (the-as
-    (function object)
-    (lambda :behavior task-manager () (send-event *traffic-manager* 'restore-default-settings) (none))
-    )
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_CLEANUP_HOOK
+  (lambda :behavior task-manager () (send-event *traffic-manager* 'restore-default-settings) (none))
   )
 
 (set-subtask-hook!
   *game-info*
-  189
-  6
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
-      (case arg2
-        (('turbo-ring-pickup)
-         (let ((gp-0 (-> arg3 param 0)))
-           (format #t "player collected ring ~d~%" gp-0)
-           (cond
-             ((= gp-0 (-> self sub-state))
-              (let ((v0-0 (the-as object (+ (-> self sub-state) 1))))
-                (set! (-> self sub-state) (the-as uint v0-0))
-                v0-0
-                )
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_EVENT_HOOK
+  (lambda :behavior task-manager
+    ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+    (case arg2
+      (('turbo-ring-pickup)
+       (let ((gp-0 (-> arg3 param 0)))
+         (format #t "player collected ring ~d~%" gp-0)
+         (cond
+           ((= gp-0 (-> self sub-state))
+            (let ((v0-0 (the-as object (+ (-> self sub-state) 1))))
+              (set! (-> self sub-state) (the-as uint v0-0))
+              v0-0
               )
-             ((< (the-as int gp-0) (the-as int (-> self sub-state)))
-              (format #t "player re-collecting an earlier ring (~d)~%" gp-0)
-              )
-             (else
-               (format #t "missed a ring (ring-id ~d, sub-state ~d)~%" gp-0 (-> self sub-state))
-               (go-virtual fail)
-               )
+            )
+           ((< (the-as int gp-0) (the-as int (-> self sub-state)))
+            (format #t "player re-collecting an earlier ring (~d)~%" gp-0)
+            )
+           (else
+             (format #t "missed a ring (ring-id ~d, sub-state ~d)~%" gp-0 (-> self sub-state))
+             (go-virtual fail)
              )
            )
          )
-        )
+       )
       )
     )
   )
 
 (set-subtask-hook!
   *game-info*
-  189
-  2
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ()
-      (let ((gp-0 (new 'stack-no-clear 'inline-array 'vector 1))
-            (s5-0 *city-errol-challenge-rings*)
-            )
-        (if (= (-> self max-count) -1)
-            (set! (-> self max-count) (-> s5-0 length))
-            )
-        (set! (-> gp-0 0 quad) (-> (target-pos 0) quad))
-        (let* ((s4-1 (new 'static 'vector :x 1305804.8 :y 102400.0 :z 3180544.0 :w 163840.0))
-               (f0-0 (vector-vector-distance-squared s4-1 (-> gp-0 0)))
-               (f1-0 (-> s4-1 w))
-               )
-          (when (< f0-0 (* f1-0 f1-0))
-            (if (< (-> self count) 18)
-                (go-virtual fail)
-                )
-            )
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_UPDATE_HOOK
+  (lambda :behavior task-manager
+    ()
+    (let ((gp-0 (new 'stack-no-clear 'inline-array 'vector 1))
+          (s5-0 *city-errol-challenge-rings*)
           )
-        (while (< (-> self count) (-> self max-count))
-          (let ((s4-2 (-> s5-0 (-> self count))))
-            (let ((f0-1 (-> s4-2 dist)))
-              (b! (< (* f0-1 f0-1) (vector-vector-distance-squared (-> gp-0 0) (-> s4-2 pos))) cfg-11)
-              )
-            (if (turbo-ring-spawn self s4-2 (-> self count) #f)
-                (+! (-> self count) 1)
-                )
-            )
+      (if (= (-> self max-count) -1)
+          (set! (-> self max-count) (-> s5-0 length))
           )
-        )
-      (label cfg-11)
-      0
-      (none)
-      )
-    )
-  )
-
-(set-subtask-hook!
-  *game-info*
-  189
-  3
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ()
-      (set! (-> self state-time) (-> self clock frame-counter))
-      (while (not (logtest? (-> *race-state* flags) 1))
-        (let ((f0-0 (-> self begin-pos w)))
-          (if (< (* f0-0 f0-0) (vector-vector-distance-squared (-> self begin-pos) (target-pos 0)))
+      (set! (-> gp-0 0 quad) (-> (target-pos 0) quad))
+      (let* ((s4-1 (new 'static 'vector :x 1305804.8 :y 102400.0 :z 3180544.0 :w 163840.0))
+             (f0-0 (vector-vector-distance-squared s4-1 (-> gp-0 0)))
+             (f1-0 (-> s4-1 w))
+             )
+        (when (< f0-0 (* f1-0 f1-0))
+          (if (< (-> self count) 18)
               (go-virtual fail)
               )
           )
-        (suspend)
         )
-      (set-setting! 'exclusive-load 'lerlchal 0 0)
-      (set-setting! 'airlock #f 0 0)
-      (none)
+      (while (< (-> self count) (-> self max-count))
+        (let ((s4-2 (-> s5-0 (-> self count))))
+          (let ((f0-1 (-> s4-2 dist)))
+            (b! (< (* f0-1 f0-1) (vector-vector-distance-squared (-> gp-0 0) (-> s4-2 pos))) cfg-11)
+            )
+          (if (turbo-ring-spawn self s4-2 (-> self count) #f)
+              (+! (-> self count) 1)
+              )
+          )
+        )
       )
+    (label cfg-11)
+    0
+    (none)
     )
   )
-
-(set-subtask-hook! *game-info* 189 5 (the-as (function object) (lambda :behavior task-manager () (none))))
 
 (set-subtask-hook!
   *game-info*
-  189
-  4
-  (the-as
-    (function object)
-    (lambda :behavior task-manager () (send-event *traffic-manager* 'decrease-alert-level 0) (none))
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_CODE_HOOK
+  (lambda :behavior task-manager
+    ()
+    (set-time! (-> self state-time))
+    (while (not (logtest? (-> *race-state* flags) (race-flags begun)))
+      (let ((f0-0 (-> self begin-pos w)))
+        (if (< (* f0-0 f0-0) (vector-vector-distance-squared (-> self begin-pos) (target-pos 0)))
+            (go-virtual fail)
+            )
+        )
+      (suspend)
+      )
+    (set-setting! 'exclusive-load 'lerlchal 0.0 0)
+    (set-setting! 'airlock #f 0.0 0)
+    (none)
     )
   )
 
-(copy-hooks! (-> *game-info* sub-task-list 307) (-> *game-info* sub-task-list 189))
+(set-subtask-hook!
+  *game-info*
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_FAIL_HOOK
+  (lambda :behavior task-manager () (none))
+  )
+
+(set-subtask-hook!
+  *game-info*
+  (game-task-node city-errol-challenge-race)
+  TASK_MANAGER_COMPLETE_HOOK
+  (lambda :behavior task-manager () (send-event *traffic-manager* 'decrease-alert-level 0) (none))
+  )
+
+(copy-hooks!
+  (-> *game-info* sub-task-list (game-task-node city-burning-bush-race-errol-resolution))
+  (-> *game-info* sub-task-list (game-task-node city-errol-challenge-race))
+  )
 
 (define *city-bush-port-rings* (new 'static 'boxed-array :type city-race-ring-info
                                  (new 'static 'city-race-ring-info
@@ -1387,147 +1325,137 @@
 
 (set-subtask-hook!
   *game-info*
-  309
-  0
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ()
-      (set-setting! 'minimap 'clear 0 32)
-      (set-setting! 'exclusive-task #f 0 (-> self node-info task))
-      (set-setting! 'exclusive-load 'lprtrace 0 0)
-      (set-setting! 'airlock #f 0 0)
-      (let ((gp-0 *traffic-manager*))
-        (send-event gp-0 'set-target-level #x3e800000)
-        (send-event gp-0 'set-guard-target-count-range 0 0 0)
-        (send-event gp-0 'set-guard-target-count-range 1 0 0)
-        (send-event gp-0 'set-guard-target-count-range 2 0 0)
-        (send-event gp-0 'set-guard-target-count-range 3 0 0)
-        (send-event gp-0 'set-guard-target-count-range 4 0 1)
-        (send-event gp-0 'set-guard-target-count-range 5 0 0)
-        )
-      (until (= (level-status *level* 'ctyport) 'active)
-        (suspend)
-        )
-      (let ((v1-47 (entity-by-name "parking-spot-22")))
-        (if v1-47
-            (logior! (-> v1-47 extra perm status) (entity-perm-status bit-9))
-            )
-        )
-      (let ((v1-49 (entity-by-name "parking-spot-23")))
-        (if v1-49
-            (logior! (-> v1-49 extra perm status) (entity-perm-status bit-9))
-            )
-        )
-      (set! (-> self start-time) 0)
-      (set! (-> self sub-state) (the-as uint 0))
-      (set! (-> self count) 0)
-      (let ((gp-2 *city-bush-port-rings*))
-        (set! (-> self max-count) (-> gp-2 length))
-        (dotimes (s5-0 (-> self max-count))
-          (let ((a1-12 (-> gp-2 s5-0)))
-            (if (turbo-ring-spawn self a1-12 s5-0 #t)
-                (+! (-> self count) 1)
-                )
-            )
-          )
-        )
-      (race-start (-> self info index) (the-as symbol self) #f)
-      (set! (-> self begin-pos quad)
-            (-> (new 'static 'vector :x 2519040.0 :y 40960.0 :z 6545408.0 :w 184320.0) quad)
-            )
-      (set-setting! 'attack #f 0 0)
-      (set-setting! 'board #f 0 0)
-      (set-setting! 'gun #f 0 0)
-      (set-setting! 'vehicle-hijacking #f 0 0)
-      (none)
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_INIT_HOOK
+  (lambda :behavior task-manager
+    ()
+    (set-setting! 'minimap 'clear 0.0 (minimap-flag task-graph))
+    (set-setting! 'exclusive-task #f 0.0 (-> self node-info task))
+    (set-setting! 'exclusive-load 'lprtrace 0.0 0)
+    (set-setting! 'airlock #f 0.0 0)
+    (let ((gp-0 *traffic-manager*))
+      (send-event gp-0 'set-target-level 0.25)
+      (send-event gp-0 'set-guard-target-count-range 0 0 0)
+      (send-event gp-0 'set-guard-target-count-range 1 0 0)
+      (send-event gp-0 'set-guard-target-count-range 2 0 0)
+      (send-event gp-0 'set-guard-target-count-range 3 0 0)
+      (send-event gp-0 'set-guard-target-count-range 4 0 1)
+      (send-event gp-0 'set-guard-target-count-range 5 0 0)
       )
-    )
-  )
-
-(set-subtask-hook!
-  *game-info*
-  309
-  1
-  (the-as
-    (function object)
-    (lambda :behavior task-manager () (send-event *traffic-manager* 'restore-default-settings) (none))
-    )
-  )
-
-(set-subtask-hook!
-  *game-info*
-  309
-  6
-  (the-as (function object) (lambda :behavior task-manager
-                              ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
-                              (the-as object (case arg2
-                                               (('race-win 'race-lose)
-                                                (let ((v0-0 1))
-                                                  (set! (-> self sub-state) (the-as uint v0-0))
-                                                  v0-0
-                                                  )
-                                                )
-                                               )
-                                      )
-                              )
+    (until (= (level-status *level* 'ctyport) 'active)
+      (suspend)
+      )
+    (let ((v1-47 (entity-by-name "parking-spot-22")))
+      (if v1-47
+          (logior! (-> v1-47 extra perm status) (entity-perm-status bit-9))
           )
-  )
-
-(set-subtask-hook!
-  *game-info*
-  309
-  3
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ()
-      (set! (-> self state-time) (-> self clock frame-counter))
-      (while (not (logtest? (-> *race-state* flags) 1))
-        (let ((f0-0 (-> self begin-pos w)))
-          (if (< (* f0-0 f0-0) (vector-vector-distance-squared (-> self begin-pos) (target-pos 0)))
-              (go-virtual fail)
+      )
+    (let ((v1-49 (entity-by-name "parking-spot-23")))
+      (if v1-49
+          (logior! (-> v1-49 extra perm status) (entity-perm-status bit-9))
+          )
+      )
+    (set! (-> self start-time) 0)
+    (set! (-> self sub-state) (the-as uint 0))
+    (set! (-> self count) 0)
+    (let ((gp-2 *city-bush-port-rings*))
+      (set! (-> self max-count) (-> gp-2 length))
+      (dotimes (s5-0 (-> self max-count))
+        (let ((a1-12 (-> gp-2 s5-0)))
+          (if (turbo-ring-spawn self a1-12 s5-0 #t)
+              (+! (-> self count) 1)
               )
           )
-        (suspend)
         )
-      (none)
+      )
+    (race-start (-> self info index) self #f)
+    (set! (-> self begin-pos quad)
+          (-> (new 'static 'vector :x 2519040.0 :y 40960.0 :z 6545408.0 :w 184320.0) quad)
+          )
+    (set-setting! 'attack #f 0.0 0)
+    (set-setting! 'board #f 0.0 0)
+    (set-setting! 'gun #f 0.0 0)
+    (set-setting! 'vehicle-hijacking #f 0.0 0)
+    (none)
+    )
+  )
+
+(set-subtask-hook!
+  *game-info*
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_CLEANUP_HOOK
+  (lambda :behavior task-manager () (send-event *traffic-manager* 'restore-default-settings) (none))
+  )
+
+(set-subtask-hook!
+  *game-info*
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_EVENT_HOOK
+  (lambda :behavior task-manager
+    ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+    (case arg2
+      (('race-win 'race-lose)
+       (let ((v0-0 1))
+         (set! (-> self sub-state) (the-as uint v0-0))
+         v0-0
+         )
+       )
       )
     )
   )
 
 (set-subtask-hook!
   *game-info*
-  309
-  2
-  (the-as (function object) (lambda :behavior task-manager
-                              ()
-                              (when (zero? (-> self sub-state))
-                                (let ((v1-2 (-> *target* pilot)))
-                                  (when (nonzero? v1-2)
-                                    (let ((v1-4 (handle->process (-> v1-2 vehicle))))
-                                      (when v1-4
-                                        (if (< (-> (the-as process-drawable v1-4) root trans y) 16384.0)
-                                            (go-virtual fail)
-                                            )
-                                        )
-                                      )
-                                    )
-                                  )
-                                )
-                              (none)
-                              )
-          )
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_CODE_HOOK
+  (lambda :behavior task-manager
+    ()
+    (set-time! (-> self state-time))
+    (while (not (logtest? (-> *race-state* flags) (race-flags begun)))
+      (let ((f0-0 (-> self begin-pos w)))
+        (if (< (* f0-0 f0-0) (vector-vector-distance-squared (-> self begin-pos) (target-pos 0)))
+            (go-virtual fail)
+            )
+        )
+      (suspend)
+      )
+    (none)
+    )
   )
-
-(set-subtask-hook! *game-info* 309 5 (the-as (function object) (lambda :behavior task-manager () (none))))
 
 (set-subtask-hook!
   *game-info*
-  309
-  4
-  (the-as
-    (function object)
-    (lambda :behavior task-manager () (send-event *traffic-manager* 'decrease-alert-level 0) (none))
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_UPDATE_HOOK
+  (lambda :behavior task-manager
+    ()
+    (when (zero? (-> self sub-state))
+      (let ((v1-2 (-> *target* pilot)))
+        (when (nonzero? v1-2)
+          (let ((v1-4 (handle->process (-> v1-2 vehicle))))
+            (when v1-4
+              (if (< (-> (the-as process-drawable v1-4) root trans y) 16384.0)
+                  (go-virtual fail)
+                  )
+              )
+            )
+          )
+        )
+      )
+    (none)
     )
+  )
+
+(set-subtask-hook!
+  *game-info*
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_FAIL_HOOK
+  (lambda :behavior task-manager () (none))
+  )
+
+(set-subtask-hook!
+  *game-info*
+  (game-task-node city-burning-bush-race-port-resolution)
+  TASK_MANAGER_COMPLETE_HOOK
+  (lambda :behavior task-manager () (send-event *traffic-manager* 'decrease-alert-level 0) (none))
   )

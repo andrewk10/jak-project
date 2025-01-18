@@ -309,6 +309,7 @@ class LoadSourceElement : public FormElement {
 class SimpleAtomElement : public FormElement {
  public:
   explicit SimpleAtomElement(const SimpleAtom& var, bool omit_var_cast = false);
+  SimpleAtomElement(int int_val, bool no_hex = false);
   goos::Object to_form_internal(const Env& env) const override;
   void apply(const std::function<void(FormElement*)>& f) override;
   void apply_form(const std::function<void(Form*)>& f) override;
@@ -324,6 +325,7 @@ class SimpleAtomElement : public FormElement {
  private:
   SimpleAtom m_atom;
   bool m_omit_var_cast;
+  bool m_no_hex;
 };
 
 /*!
@@ -438,6 +440,7 @@ class SetFormFormElement : public FormElement {
   const std::optional<TypeSpec>& cast_for_define() const { return m_cast_for_define; }
   void set_cast_for_set(const std::optional<TypeSpec>& ts) { m_cast_for_set = ts; }
   void set_cast_for_define(const std::optional<TypeSpec>& ts) { m_cast_for_define = ts; }
+  FormElement* make_set_time(const Env& env, FormPool& pool, FormStack& stack);
 
  private:
   int m_real_push_count = 0;
@@ -598,6 +601,10 @@ class ConditionElement : public FormElement {
                                                   FormPool& pool,
                                                   const std::vector<Form*>& source_forms,
                                                   const std::vector<TypeSpec>& types);
+  FormElement* make_time_elapsed(const Env& env,
+                                 FormPool& pool,
+                                 const std::vector<Form*>& source_forms,
+                                 const std::vector<TypeSpec>& types);
   bool allow_in_if() const override { return false; }
 
  private:
@@ -1173,6 +1180,7 @@ class StringConstantElement : public FormElement {
                          FormStack& stack,
                          std::vector<FormElement*>* result,
                          bool allow_side_effects) override;
+  const std::string& value() const { return m_value; }
 
  private:
   std::string m_value;
@@ -1240,6 +1248,7 @@ class DerefToken {
     return m_kind == Kind::FIELD_NAME && m_name == name;
   }
 
+  bool is_int() const { return m_kind == Kind::INTEGER_CONSTANT; }
   bool is_int(int x) const { return m_kind == Kind::INTEGER_CONSTANT && m_int_constant == x; }
 
   bool is_expr() const { return m_kind == Kind::INTEGER_EXPRESSION; }
@@ -1293,6 +1302,9 @@ class DerefElement : public FormElement {
 
  private:
   ConstantTokenElement* try_as_art_const(const Env& env, FormPool& pool);
+  GenericElement* try_as_joint_node_index(const Env& env, FormPool& pool);
+  GenericElement* try_as_curtime(const Env& env, FormPool& pool);
+  GenericElement* try_as_seconds_per_frame(const Env& env, FormPool& pool);
 
   Form* m_base = nullptr;
   bool m_is_addr_of = false;
@@ -1420,6 +1432,7 @@ class LetElement : public FormElement {
   void collect_vars(RegAccessSet& vars, bool recursive) const override;
   void get_modified_regs(RegSet& regs) const override;
   Form* body() { return m_body; }
+  const Form* body() const { return m_body; }
   void set_body(Form* new_body);
   bool allow_in_if() const override { return false; }
 
@@ -1428,6 +1441,7 @@ class LetElement : public FormElement {
     Form* src = nullptr;
   };
   std::vector<Entry>& entries() { return m_entries; }
+  const std::vector<Entry>& entries() const { return m_entries; }
   void add_entry(const Entry& e);
   bool is_star() const { return m_star; }
 
@@ -1650,6 +1664,7 @@ class DefstateElement : public FormElement {
   };
   DefstateElement(const std::string& process_type,
                   const std::string& state_name,
+                  const std::string& parent_name,
                   const std::vector<Entry>& entries,
                   bool is_virtual,
                   bool is_override);
@@ -1669,6 +1684,7 @@ class DefstateElement : public FormElement {
  private:
   std::string m_process_type;
   std::string m_state_name;
+  std::string m_parent_name;
   std::vector<Entry> m_entries;
   bool m_is_virtual = false;
   bool m_is_override = false;
@@ -1676,8 +1692,33 @@ class DefstateElement : public FormElement {
 
 class DefskelgroupElement : public FormElement {
  public:
+  struct ClothParams {
+    u16 mesh;
+    float gravity;
+    float wind;
+    u16 width;
+    u16 sphere_constraints;
+    u16 disc_constraints;
+    u16 anchor_points;
+    u64 flags;
+    std::string tex_name;
+    std::string tex_name2;
+    std::string tex_name3;
+    std::string alt_tex_name;
+    std::string alt_tex_name2;
+    std::string alt_tex_name3;
+    float thickness;
+    u16 xform;
+    float drag;
+    float ball_collision_radius;
+    u8 iterations;
+    u8 timestep_freq;
+    u64 secret;
+
+    goos::Object to_list(const std::string& ag_name, const Env& env) const;
+  };
   struct StaticInfo {
-    std::string name;  // jak 2
+    std::string name;  // jak 2/3
     std::string art_group_name;
     math::Vector4f bounds;
     int max_lod;
@@ -1689,6 +1730,9 @@ class DefskelgroupElement : public FormElement {
     s8 origin_joint_index;
     s8 shadow_joint_index;
     s8 light_index;
+    // jak 3
+    s8 global_effects;
+    std::vector<ClothParams> clothing;
   };
   struct Entry {
     Form* mgeo = nullptr;
@@ -1770,17 +1814,18 @@ class DefpartElement : public FormElement {
       u16 field_id;
       u16 flags;
       std::vector<LinkedWord> data;
-      goos::Object sound_spec;
-      goos::Object userdata;  // backup
+      goos::Object sound_spec;  // any static object actually
+      goos::Object userdata;    // backup
 
       bool is_sp_end(GameVersion version) const {
         switch (version) {
           case GameVersion::Jak1:
             return field_id == 67;
           case GameVersion::Jak2:
+          case GameVersion::Jak3:
             return field_id == 72;
           default:
-            ASSERT_MSG(false, fmt::format("unknown version {} for is_sp_end"));
+            ASSERT_MSG(false, fmt::format("unknown version for is_sp_end"));
             return false;
         }
       }
@@ -1811,7 +1856,7 @@ class WithDmaBufferAddBucketElement : public FormElement {
   WithDmaBufferAddBucketElement(RegisterAccess dma_buf,
                                 Form* dma_buf_val,
                                 Form* bucket,
-                                const std::vector<FormElement*>& body);
+                                Form* body);
 
   goos::Object to_form_internal(const Env& env) const override;
   void apply(const std::function<void(FormElement*)>& f) override;
@@ -1829,7 +1874,7 @@ class WithDmaBufferAddBucketElement : public FormElement {
   RegisterAccess m_dma_buf;
   Form* m_dma_buf_val;
   Form* m_bucket;
-  std::vector<FormElement*> m_body;
+  Form* m_body;
 };
 
 class ResLumpMacroElement : public FormElement {

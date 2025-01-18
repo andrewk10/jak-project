@@ -2,7 +2,7 @@
 
 #include <cmath>
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 namespace math {
 
@@ -18,8 +18,16 @@ class Vector {
     return result;
   }
 
+  static Vector<T, Size> unit(int idx) {
+    Vector<T, Size> result = Vector<T, Size>::zero();
+    result[idx] = T(1);
+    return result;
+  }
+
   template <typename... Args>
-  explicit Vector(Args... args) : m_data{T(args)...} {}
+  constexpr Vector(Args... args) : m_data{T(args)...} {
+    static_assert(sizeof...(args) == Size, "Incorrect number of args");
+  }
 
   T* begin() { return &m_data[0]; }
   T* end() { return &m_data[Size]; }
@@ -224,6 +232,22 @@ class Vector {
     }
   }
 
+  Vector<T, Size> min(const Vector<T, Size>& other) const {
+    Vector<T, Size> result;
+    for (int i = 0; i < Size; i++) {
+      result[i] = std::min(m_data[i], other[i]);
+    }
+    return result;
+  }
+
+  Vector<T, Size> max(const Vector<T, Size>& other) const {
+    Vector<T, Size> result;
+    for (int i = 0; i < Size; i++) {
+      result[i] = std::max(m_data[i], other[i]);
+    }
+    return result;
+  }
+
   std::string to_string_aligned() const {
     std::string result = "[";
     for (auto x : m_data) {
@@ -343,6 +367,17 @@ struct Matrix {
     }
 
     return result;
+  }
+
+  Matrix<T, Rows, Cols> transposed() const {
+    static_assert(Rows == Cols);
+    Matrix<T, Rows, Cols> ret;
+    for (int i = 0; i < Rows; i++) {
+      for (int j = 0; j < Cols; j++) {
+        ret(i, j) = operator()(j, i);
+      }
+    }
+    return ret;
   }
 
   template <int OtherCols>

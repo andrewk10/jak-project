@@ -24,7 +24,8 @@ SkyBlendHandler::SkyBlendHandler(const std::string& name,
                                  int my_id,
                                  int level_id,
                                  std::shared_ptr<SkyBlendGPU> shared_blender,
-                                 std::shared_ptr<SkyBlendCPU> shared_blender_cpu)
+                                 std::shared_ptr<SkyBlendCPU> shared_blender_cpu,
+                                 const std::vector<GLuint>* anim_slots)
     : BucketRenderer(name, my_id),
       m_shared_gpu_blender(shared_blender),
       m_shared_cpu_blender(shared_blender_cpu),
@@ -32,7 +33,12 @@ SkyBlendHandler::SkyBlendHandler(const std::string& name,
                        my_id,
                        {tfrag3::TFragmentTreeKind::TRANS, tfrag3::TFragmentTreeKind::LOWRES_TRANS},
                        true,
-                       level_id) {}
+                       level_id,
+                       anim_slots) {}
+
+void SkyBlendHandler::init_shaders(ShaderLibrary& shaders) {
+  m_tfrag_renderer.init_shaders(shaders);
+}
 
 void SkyBlendHandler::handle_sky_copies(DmaFollower& dma,
                                         SharedRenderState* render_state,
@@ -116,6 +122,7 @@ void SkyBlendHandler::draw_debug_window() {
 
   if (ImGui::TreeNode("tfrag")) {
     m_tfrag_renderer.draw_debug_window();
+    ImGui::Checkbox("enable", &m_tfrag_renderer.enabled());
     ImGui::TreePop();
   }
 }
@@ -155,7 +162,7 @@ void SkyRenderer::render(DmaFollower& dma,
     // mmag/mmin = 1
     // clamp
     // drawing.
-    int dma_idx = 0;
+    [[maybe_unused]] int dma_idx = 0;
     while (dma.current_tag().kind == DmaTag::Kind::CNT) {
       m_frame_stats.gif_packets++;
       auto data = dma.read_and_advance();

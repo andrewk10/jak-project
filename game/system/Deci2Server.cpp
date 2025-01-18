@@ -8,11 +8,11 @@
 #include "Deci2Server.h"
 
 #include "common/cross_sockets/XSocket.h"
-#include "common/versions.h"
+#include "common/versions/versions.h"
 #include "common/listener_common.h"
 #include "common/util/Assert.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 #ifdef _WIN32
 #define NOMINMAX

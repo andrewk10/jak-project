@@ -28,10 +28,15 @@ struct MethodInfo {
   std::string name;
   TypeSpec type;
   std::string defined_in_type;
+  // TODO - this might be redundant, but preventing an unknown breaking change, clean it up later
+  std::string type_name;
   bool no_virtual = false;
+  // TODO - this is no longer used anymore...but was not removed from th4e struct?
   bool overrides_parent = false;
+  // TODO - this is no longer used anymore...but was not removed from th4e struct?
   bool only_overrides_docstring = false;
   std::optional<std::string> docstring;
+  std::optional<std::string> overlay_name;
 
   bool operator==(const MethodInfo& other) const;
   bool operator!=(const MethodInfo& other) const { return !((*this) == other); }
@@ -133,7 +138,7 @@ class Type {
   bool m_new_method_info_defined = false;
   bool m_generate_inspect = true;
 
-  std::string m_parent;  // the parent type (is empty for none and object)
+  std::string m_parent;  // the parent type (is empty for object)
   std::string m_name;
   bool m_allow_in_runtime = true;
   std::string m_runtime_name;
@@ -222,9 +227,14 @@ class Field {
   void set_dynamic();
   void set_array(int size);
   void set_inline();
+  void set_override_type(const TypeSpec& new_type) {
+    m_type = new_type;
+    m_override_type = true;
+  }
   void mark_as_user_placed() { m_placed_by_user = true; }
   std::string print() const;
   const TypeSpec& type() const { return m_type; }
+  const std::optional<TypeSpec> decomp_as_type() const { return m_decomp_as_ts; }
   TypeSpec& type() { return m_type; }
   bool is_inline() const { return m_inline; }
   bool is_array() const { return m_array; }
@@ -233,6 +243,9 @@ class Field {
   int offset() const { return m_offset; }
   bool skip_in_decomp() const { return m_skip_in_static_decomp; }
   bool user_placed() const { return m_placed_by_user; }
+  void set_comment(const std::string& comment) { m_comment = comment; }
+  const std::string& comment() const { return m_comment; }
+  bool has_comment() const { return !m_comment.empty(); }
   bool operator==(const Field& other) const;
   bool operator!=(const Field& other) const { return !((*this) == other); }
   std::string diff(const Field& other) const;
@@ -249,6 +262,7 @@ class Field {
 
   double field_score() const { return m_field_score; }
   void set_field_score(double value) { m_field_score = value; }
+  void set_decomp_as_ts(const TypeSpec& ts) { m_decomp_as_ts = ts; }
 
  private:
   friend class TypeSystem;
@@ -258,6 +272,7 @@ class Field {
 
   std::string m_name;
   TypeSpec m_type;
+  bool m_override_type = false;
   int m_offset = -1;
   bool m_inline =
       false;  // does not make sense if m_type is value, and not an array and not dynamic
@@ -267,8 +282,11 @@ class Field {
   int m_alignment = -1;
   bool m_skip_in_static_decomp = false;
   bool m_placed_by_user = false;  // was this field placed manually by the user?
+  std::string m_comment;          // optional comment placed next to the field
 
   double m_field_score = 0.;
+
+  std::optional<TypeSpec> m_decomp_as_ts = std::nullopt;
 };
 
 class StructureType : public ReferenceType {
@@ -282,6 +300,7 @@ class StructureType : public ReferenceType {
   std::string print() const override;
   void inherit(StructureType* parent);
   const std::vector<Field>& fields() const { return m_fields; }
+  const std::vector<int>& override_fields() const { return m_overriden_fields; }
   bool operator==(const Type& other) const override;
   std::string diff_impl(const Type& other) const override;
   std::string diff_structure_common(const StructureType& other) const;
@@ -302,6 +321,7 @@ class StructureType : public ReferenceType {
   void set_allow_misalign(bool misalign) { m_allow_misalign = misalign; }
   void set_gen_inspect(bool gen_inspect) { m_generate_inspect = gen_inspect; }
   int size() const { return m_size_in_mem; }
+  void override_field_type(const std::string& field_name, const TypeSpec& new_type);
 
  protected:
   friend class TypeSystem;
@@ -317,6 +337,7 @@ class StructureType : public ReferenceType {
   size_t first_unique_field_idx() const { return m_idx_of_first_unique_field; }
 
   std::vector<Field> m_fields;
+  std::vector<int> m_overriden_fields;
   bool m_dynamic = false;
   int m_size_in_mem = 0;
   bool m_pack = false;

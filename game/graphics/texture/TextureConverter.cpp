@@ -4,7 +4,7 @@
 #include "common/util/Assert.h"
 #include "common/util/FileUtil.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 TextureConverter::TextureConverter() {
   m_vram.resize(4 * 1024 * 1024);
@@ -21,6 +21,16 @@ void TextureConverter::upload(const u8* data, u32 dest, u32 size_vram_words) {
       // VRAM address (bytes)
       auto addr32 = psmct32_addr(x, y, copy_width) + dest * 4;
       *(u32*)(m_vram.data() + addr32) = *((const u32*)(data) + (x + y * copy_width));
+    }
+  }
+}
+
+void TextureConverter::upload_width(const u8* data, u32 dest, u32 width, u32 height) {
+  for (u32 y = 0; y < height; y++) {
+    for (u32 x = 0; x < width; x++) {
+      // VRAM address (bytes)
+      auto addr32 = psmct32_addr(x, y, width) + dest * 256;
+      *(u32*)(m_vram.data() + addr32) = *((const u32*)(data) + (x + y * width));
     }
   }
 }
@@ -198,8 +208,4 @@ void TextureConverter::download_rgba8888(u8* result,
   }
 
   ASSERT(out_offset == expected_size_bytes);
-}
-
-void TextureConverter::serialize(Serializer& ser) {
-  ser.from_pod_vector(&m_vram);
 }

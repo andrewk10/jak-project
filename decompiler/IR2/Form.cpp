@@ -12,6 +12,8 @@
 #include "decompiler/util/data_decompile.h"
 #include "decompiler/util/sparticle_decompile.h"
 
+#include "fmt/ranges.h"
+
 namespace decompiler {
 
 ///////////////////
@@ -279,9 +281,16 @@ void LoadSourceElement::get_modified_regs(RegSet& regs) const {
 /////////////////////////////
 
 SimpleAtomElement::SimpleAtomElement(const SimpleAtom& atom, bool omit_var_cast)
-    : m_atom(atom), m_omit_var_cast(omit_var_cast) {
+    : m_atom(atom), m_omit_var_cast(omit_var_cast), m_no_hex(false) {
   if (m_omit_var_cast) {
     ASSERT(atom.is_var());
+  }
+}
+
+SimpleAtomElement::SimpleAtomElement(int int_val, bool no_hex)
+    : m_atom(SimpleAtom::make_int_constant(int_val)), m_omit_var_cast(false), m_no_hex(no_hex) {
+  if (m_no_hex) {
+    m_atom.mark_as_no_hex();
   }
 }
 
@@ -1873,10 +1882,16 @@ std::string fixed_operator_to_string(FixedOperatorKind kind) {
       return "cpad-pressed?";
     case FixedOperatorKind::CPAD_HOLD_P:
       return "cpad-hold?";
+    case FixedOperatorKind::MOUSE_PRESSED_P:
+      return "mouse-pressed?";
+    case FixedOperatorKind::MOUSE_HOLD_P:
+      return "mouse-hold?";
     case FixedOperatorKind::VECTOR_LENGTH:
       return "vector-length";
     case FixedOperatorKind::VECTOR_PLUS_FLOAT_TIMES:
       return "vector+float*!";
+    case FixedOperatorKind::FOCUS_TEST:
+      return "focus-test?";
     default:
       ASSERT(false);
       return "";
@@ -2892,11 +2907,13 @@ void GetSymbolStringPointer::get_modified_regs(RegSet& regs) const {
 
 DefstateElement::DefstateElement(const std::string& process_type,
                                  const std::string& state_name,
+                                 const std::string& parent_name,
                                  const std::vector<Entry>& entries,
                                  bool is_virtual,
                                  bool is_override)
     : m_process_type(process_type),
       m_state_name(state_name),
+      m_parent_name(parent_name),
       m_entries(entries),
       m_is_virtual(is_virtual),
       m_is_override(is_override) {
@@ -2946,6 +2963,10 @@ goos::Object DefstateElement::to_form_internal(const Env& env) const {
     }
   }
 
+  if (!m_parent_name.empty()) {
+    forms.push_back(pretty_print::to_symbol(fmt::format(":parent {}", m_parent_name)));
+  }
+
   for (const auto& e : m_entries) {
     forms.push_back(pretty_print::to_symbol(fmt::format(":{}", handler_kind_to_name(e.kind))));
     auto to_print = e.val;
@@ -2956,52 +2977,42 @@ goos::Object DefstateElement::to_form_internal(const Env& env) const {
 }
 
 ////////////////////////////////
-// DefskelgroupElement
+// WithDmaBufferAddBucketElement
 ////////////////////////////////
 
 WithDmaBufferAddBucketElement::WithDmaBufferAddBucketElement(RegisterAccess dma_buf,
                                                              Form* dma_buf_val,
                                                              Form* bucket,
-                                                             const std::vector<FormElement*>& body)
+                                                             Form* body)
     : m_dma_buf(dma_buf), m_dma_buf_val(dma_buf_val), m_bucket(bucket), m_body(body) {
   m_dma_buf_val->parent_element = this;
   m_bucket->parent_element = this;
-  for (auto& e : m_body) {
-    e->parent_form = nullptr;
-  }
+  m_body->parent_element = this;
 }
 
 void WithDmaBufferAddBucketElement::apply(const std::function<void(FormElement*)>& f) {
   f(this);
   m_dma_buf_val->apply(f);
   m_bucket->apply(f);
-  for (auto& e : m_body) {
-    e->apply(f);
-  }
+  m_body->apply(f);
 }
 
 void WithDmaBufferAddBucketElement::apply_form(const std::function<void(Form*)>& f) {
   m_dma_buf_val->apply_form(f);
   m_bucket->apply_form(f);
-  for (auto& e : m_body) {
-    e->apply_form(f);
-  }
+  m_body->apply_form(f);
 }
 
 void WithDmaBufferAddBucketElement::collect_vars(RegAccessSet& vars, bool recursive) const {
   m_dma_buf_val->collect_vars(vars, recursive);
   m_bucket->collect_vars(vars, recursive);
-  for (auto& e : m_body) {
-    e->collect_vars(vars, recursive);
-  }
+  m_body->collect_vars(vars, recursive);
 }
 
 void WithDmaBufferAddBucketElement::get_modified_regs(RegSet& regs) const {
   m_dma_buf_val->get_modified_regs(regs);
   m_bucket->get_modified_regs(regs);
-  for (auto& e : m_body) {
-    e->get_modified_regs(regs);
-  }
+  m_body->get_modified_regs(regs);
 }
 
 goos::Object WithDmaBufferAddBucketElement::to_form_internal(const Env& env) const {
@@ -3011,9 +3022,7 @@ goos::Object WithDmaBufferAddBucketElement::to_form_internal(const Env& env) con
       {pretty_print::build_list({pretty_print::to_symbol(env.get_variable_name(m_dma_buf)),
                                  m_dma_buf_val->to_form(env)}),
        m_bucket->to_form(env)}));
-  for (auto& e : m_body) {
-    forms.push_back(e->to_form(env));
-  }
+  m_body->inline_forms(forms, env);
 
   return pretty_print::build_list(forms);
 }
@@ -3069,6 +3078,116 @@ void DefskelgroupElement::get_modified_regs(RegSet& regs) const {
   }
   m_info.janim->get_modified_regs(regs);
   m_info.jgeo->get_modified_regs(regs);
+}
+
+goos::Object DefskelgroupElement::ClothParams::to_list(const std::string& ag_name,
+                                                       const Env& env) const {
+  std::vector<goos::Object> result;
+  if (mesh != 0) {
+    const auto& art = env.dts->art_group_info;
+    if (art.find(ag_name) != art.end() && art.at(ag_name).find(mesh) != art.at(ag_name).end()) {
+      auto name = art.at(ag_name).at(mesh);
+      result.push_back(pretty_print::build_list(
+          {pretty_print::to_symbol("mesh"), pretty_print::to_symbol(name)}));
+    } else {
+      result.push_back(pretty_print::build_list(
+          {pretty_print::to_symbol("mesh"), pretty_print::to_symbol(std::to_string(mesh))}));
+    }
+  }
+  if (gravity != 0.0f) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("gravity-constant"),
+         pretty_print::to_symbol(fmt::format("(meters {})", meters_to_string(gravity)))}));
+  }
+  if (wind != 0.0f) {
+    result.push_back(pretty_print::build_list({pretty_print::to_symbol("wind-constant"),
+                                               pretty_print::to_symbol(float_to_string(wind))}));
+  }
+  if (width != 0) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("cloth-width"), pretty_print::to_symbol(std::to_string(width))}));
+  }
+  if (sphere_constraints != 0) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("num-sphere-constraints"),
+                                  pretty_print::to_symbol(std::to_string(sphere_constraints))}));
+  }
+  if (disc_constraints != 0) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("num-disc-constraints"),
+                                  pretty_print::to_symbol(std::to_string(disc_constraints))}));
+  }
+  if (anchor_points != 0) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("num-anchor-points"),
+                                  pretty_print::to_symbol(std::to_string(anchor_points))}));
+  }
+  if (flags != 0) {
+    auto bits = decompile_bitfield_enum_from_int(TypeSpec("cloth-flag"), env.dts->ts, flags);
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("flags"),
+         pretty_print::to_symbol(fmt::format("(cloth-flag {})", fmt::join(bits, " ")))}));
+  }
+  if (!tex_name.empty()) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("tex-name"), pretty_print::new_string(tex_name)}));
+  }
+  if (!tex_name2.empty()) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("tex-name2"), pretty_print::new_string(tex_name2)}));
+  }
+  if (!tex_name3.empty()) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("tex-name3"), pretty_print::new_string(tex_name3)}));
+  }
+  if (!alt_tex_name.empty()) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("alt-tex-name"), pretty_print::new_string(alt_tex_name)}));
+  }
+  if (!alt_tex_name2.empty()) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("alt-tex-name2"), pretty_print::new_string(alt_tex_name2)}));
+  }
+  if (!alt_tex_name3.empty()) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("alt-tex-name3"), pretty_print::new_string(alt_tex_name3)}));
+  }
+  if (thickness != 0.0f) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("cloth-thickness"),
+                                  pretty_print::to_symbol(float_to_string(thickness))}));
+  }
+  if (xform != 0) {
+    result.push_back(pretty_print::build_list({pretty_print::to_symbol("initial-xform"),
+                                               pretty_print::to_symbol(std::to_string(xform))}));
+  }
+  if (drag != 0.0f) {
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("drag"), pretty_print::to_symbol(float_to_string(drag))}));
+  }
+  if (ball_collision_radius != 0.0f) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("ball-collision-radius"),
+                                  pretty_print::to_symbol(fmt::format(
+                                      "(meters {})", meters_to_string(ball_collision_radius)))}));
+  }
+  if (iterations != 0) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("num-iterations"),
+                                  pretty_print::to_symbol(std::to_string(iterations))}));
+  }
+  if (timestep_freq != 0) {
+    result.push_back(
+        pretty_print::build_list({pretty_print::to_symbol("timestep-frequency"),
+                                  pretty_print::to_symbol(std::to_string(timestep_freq))}));
+  }
+  if (secret != 0) {
+    auto bits = decompile_bitfield_enum_from_int(TypeSpec("game-secrets"), env.dts->ts, secret);
+    result.push_back(pretty_print::build_list(
+        {pretty_print::to_symbol("secret-disable"),
+         pretty_print::to_symbol(fmt::format("(game-secrets {})", fmt::join(bits, " ")))}));
+  }
+  return pretty_print::build_list(result);
 }
 
 goos::Object DefskelgroupElement::to_form_internal(const Env& env) const {
@@ -3130,15 +3249,21 @@ goos::Object DefskelgroupElement::to_form_internal(const Env& env) const {
   if (m_static_info.sort != 0) {
     forms.push_back(pretty_print::to_symbol(fmt::format(":sort {}", m_static_info.sort)));
   }
-  // jak 2 skelgroups seem to be using version 7
-  if (env.version != GameVersion::Jak1) {
-    if (m_static_info.version != 7) {
-      forms.push_back(pretty_print::to_symbol(fmt::format(":version {}", m_static_info.version)));
-    }
-  } else {
-    if (m_static_info.version != 6) {
-      forms.push_back(pretty_print::to_symbol(fmt::format(":version {}", m_static_info.version)));
-    }
+  switch (env.version) {
+    case GameVersion::Jak1:
+      if (m_static_info.version != 6) {
+        forms.push_back(pretty_print::to_symbol(fmt::format(":version {}", m_static_info.version)));
+      }
+      break;
+    case GameVersion::Jak2:
+      if (m_static_info.version != 7) {
+        forms.push_back(pretty_print::to_symbol(fmt::format(":version {}", m_static_info.version)));
+      }
+      break;
+    case GameVersion::Jak3:
+      if (m_static_info.version != 8) {
+        forms.push_back(pretty_print::to_symbol(fmt::format(":version {}", m_static_info.version)));
+      }
   }
   if (env.version != GameVersion::Jak1) {
     if (m_static_info.origin_joint_index != 0) {
@@ -3147,11 +3272,26 @@ goos::Object DefskelgroupElement::to_form_internal(const Env& env) const {
     }
     if (m_static_info.shadow_joint_index != 0) {
       forms.push_back(pretty_print::to_symbol(
-          fmt::format(":shadow-joint-index {}", m_static_info.origin_joint_index)));
+          fmt::format(":shadow-joint-index {}", m_static_info.shadow_joint_index)));
     }
     if (m_static_info.light_index != 0) {
-      forms.push_back(pretty_print::to_symbol(
-          fmt::format(":light-index {}", m_static_info.origin_joint_index)));
+      forms.push_back(
+          pretty_print::to_symbol(fmt::format(":light-index {}", m_static_info.light_index)));
+    }
+    if (env.version != GameVersion::Jak2) {
+      if (m_static_info.global_effects != 0) {
+        forms.push_back(pretty_print::to_symbol(
+            fmt::format(":global-effects {}", m_static_info.global_effects)));
+      }
+      if (!m_static_info.clothing.empty()) {
+        std::vector<goos::Object> cloth_list;
+        forms.push_back(pretty_print::to_symbol(":clothing"));
+        for (const auto& p : m_static_info.clothing) {
+          auto macro = p.to_list(m_static_info.art_group_name + "-ag", env);
+          cloth_list.push_back(macro);
+        }
+        forms.push_back(pretty_print::build_list(cloth_list));
+      }
     }
   }
 
@@ -3208,13 +3348,13 @@ goos::Object DefpartgroupElement::to_form_internal(const Env& env) const {
     if (m_static_info.rot != 0) {
       forms.push_back(pretty_print::to_symbol(fmt::format(
           ":rotate ((degrees {}) (degrees {}) (degrees {}))",
-          meters_to_string(m_static_info.rot.x()), meters_to_string(m_static_info.rot.y()),
-          meters_to_string(m_static_info.rot.z()))));
+          degrees_to_string(m_static_info.rot.x()), degrees_to_string(m_static_info.rot.y()),
+          degrees_to_string(m_static_info.rot.z()))));
     }
     if (m_static_info.scale != 1) {
       forms.push_back(pretty_print::to_symbol(fmt::format(
-          ":scale ({} {} {})", float_to_string(m_static_info.rot.x()),
-          float_to_string(m_static_info.rot.y()), float_to_string(m_static_info.rot.z()))));
+          ":scale ({} {} {})", float_to_string(m_static_info.scale.x()),
+          float_to_string(m_static_info.scale.y()), float_to_string(m_static_info.scale.z()))));
     }
   }
 
@@ -3252,16 +3392,16 @@ goos::Object DefpartgroupElement::to_form_internal(const Env& env) const {
     }
 
     if (period) {
-      result += fmt::format(" :period {}", period);
+      result += fmt::format(" :period (seconds {})", seconds_to_string(period));
     }
 
     if (length) {
-      result += fmt::format(" :length {}", length);
+      result += fmt::format(" :length (seconds {})", seconds_to_string(length));
     }
 
     if (offset) {
       // jak2 has switched this field to a signed 16 bit number
-      if (env.version == GameVersion::Jak2) {
+      if (env.version >= GameVersion::Jak2) {
         result += fmt::format(" :offset {}", (s16)offset);
       } else {
         result += fmt::format(" :offset {}", offset);
@@ -3313,7 +3453,8 @@ goos::Object DefpartElement::to_form_internal(const Env& env) const {
       // sp-end
       break;
     }
-    item_forms.push_back(decompile_sparticle_field_init(e, env.dts->ts, env.version));
+    item_forms.push_back(decompile_sparticle_field_init(e.data, e.field_id, e.flags, e.sound_spec,
+                                                        e.userdata, env.dts->ts, env.version, env));
   }
   if (!item_forms.empty()) {
     forms.push_back(pretty_print::to_symbol(":init-specs"));

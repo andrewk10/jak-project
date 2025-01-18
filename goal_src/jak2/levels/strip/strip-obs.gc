@@ -7,123 +7,109 @@
 
 ;; DECOMP BEGINS
 
-(defmethod draw hud-plasmite ((obj hud-plasmite))
+(defmethod draw ((this hud-plasmite))
   (set-hud-piece-position!
-    (the-as hud-sprite (-> obj sprites))
-    (the int (+ 457.0 (* 130.0 (-> obj offset))))
+    (the-as hud-sprite (-> this sprites))
+    (the int (+ 457.0 (* 130.0 (-> this offset))))
     210
     )
-  (format (clear (-> obj strings 0 text)) "~D" (-> obj values 0 current))
-  (set-as-offset-from! (the-as hud-sprite (-> obj strings 0 pos)) (the-as vector4w (-> obj sprites)) -16 20)
-  ((method-of-type hud draw) obj)
+  (format (clear (-> this strings 0 text)) "~D" (-> this values 0 current))
+  (set-as-offset-from! (the-as hud-sprite (-> this strings 0 pos)) (the-as vector4w (-> this sprites)) -16 20)
+  ((method-of-type hud draw) this)
   0
   (none)
   )
 
-(defmethod update-values hud-plasmite ((obj hud-plasmite))
-  (set! (-> obj values 0 target) (the int (-> *game-info* counter)))
-  ((method-of-type hud update-values) obj)
+(defmethod update-values ((this hud-plasmite))
+  (set! (-> this values 0 target) (the int (-> *game-info* counter)))
+  ((method-of-type hud update-values) this)
   0
   (none)
   )
 
-(defmethod init-callback hud-plasmite ((obj hud-plasmite))
-  (set! (-> obj level) (level-get *level* 'strip))
-  (set! (-> obj gui-id)
-        (add-process *gui-control* obj (gui-channel hud-middle-right) (gui-action hidden) (-> obj name) 81920.0 0)
+(defmethod init-callback ((this hud-plasmite))
+  (set! (-> this level) (level-get *level* 'strip))
+  (set! (-> this gui-id)
+        (add-process *gui-control* this (gui-channel hud-middle-right) (gui-action hidden) (-> this name) 81920.0 0)
         )
-  (logior! (-> obj flags) (hud-flags show))
-  (set! (-> obj sprites 0 tex) (lookup-texture-by-id (new 'static 'texture-id :page #xb26)))
-  (set! (-> obj sprites 0 flags) (the-as uint 4))
-  (set! (-> obj sprites 0 scale-x) 1.0)
-  (set! (-> obj sprites 0 scale-y) 1.0)
-  (alloc-string-if-needed obj 0)
-  (set! (-> obj strings 0 scale) 0.6)
-  (set! (-> obj strings 0 flags) (font-flags kerning middle large))
+  (logior! (-> this flags) (hud-flags show))
+  (set! (-> this sprites 0 tex) (lookup-texture-by-id (new 'static 'texture-id :page #xb26)))
+  (set! (-> this sprites 0 flags) (the-as uint 4))
+  (set! (-> this sprites 0 scale-x) 1.0)
+  (set! (-> this sprites 0 scale-y) 1.0)
+  (alloc-string-if-needed this 0)
+  (set! (-> this strings 0 scale) 0.6)
+  (set! (-> this strings 0 flags) (font-flags kerning middle large))
   0
   (none)
   )
 
 (deftype strip-hazard (process-drawable)
-  ((root-override      collide-shape-moving         :offset        128)
-   (sync               sync-linear          :inline :offset-assert 200)
-   (shove-vec          vector               :inline :offset-assert 224)
-   (no-collision-timer uint64                       :offset-assert 240)
-   (attack-id          uint32                       :offset-assert 248)
+  ((root                collide-shape-moving :override)
+   (sync                sync-linear           :inline)
+   (shove-vec           vector                :inline)
+   (no-collision-timer  uint64)
+   (attack-id           uint32)
    )
-  :heap-base #x80
-  :method-count-assert 21
-  :size-assert         #xfc
-  :flag-assert         #x15008000fc
-  (:methods
-    (idle () _type_ :state 20)
+  (:state-methods
+    idle
     )
   )
 
 
 ;; WARN: Return type mismatch int vs object.
 (defbehavior strip-handler strip-hazard ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
-  (the-as
-    object
-    (case arg2
-      (('touch 'attack)
-       (let* ((s4-0 arg0)
-              (gp-0 (if (type? s4-0 process-focusable)
-                        (the-as process-focusable s4-0)
-                        )
-                    )
-              )
-         (when gp-0
-           (let ((s4-1 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self root-override quat))))
-             (let* ((v1-4 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> gp-0 root-override quat)))
-                    (f0-1 (vector-dot s4-1 v1-4))
-                    )
-               (if (< 0.0 f0-1)
-                   (vector-float*! s4-1 s4-1 -1.0)
-                   )
-               )
-             (let ((a1-7 (new 'stack-no-clear 'event-message-block)))
-               (set! (-> a1-7 from) (process->ppointer self))
-               (set! (-> a1-7 num-params) 2)
-               (set! (-> a1-7 message) 'attack)
-               (set! (-> a1-7 param 0) (-> arg3 param 0))
-               (let ((v1-13 (new 'static 'attack-info :mask (attack-info-mask vector shove-back shove-up control id))))
-                 (set! (-> v1-13 id) (-> self attack-id))
-                 (set! (-> v1-13 vector quad) (-> s4-1 quad))
-                 (set! (-> v1-13 shove-back) (-> self shove-vec z))
-                 (set! (-> v1-13 shove-up) (-> self shove-vec y))
-                 (set! (-> v1-13 control) (if (logtest? (focus-status board) (-> gp-0 focus-status))
-                                              1.0
-                                              0.0
-                                              )
-                       )
-                 (set! (-> a1-7 param 1) (the-as uint v1-13))
+  (case arg2
+    (('touch 'attack)
+     (let* ((s4-0 arg0)
+            (gp-0 (if (type? s4-0 process-focusable)
+                      (the-as process-focusable s4-0)
+                      )
+                  )
+            )
+       (when gp-0
+         (let ((s4-1 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> self root quat))))
+           (let* ((v1-4 (vector-z-quaternion! (new 'stack-no-clear 'vector) (-> gp-0 root quat)))
+                  (f0-1 (vector-dot s4-1 v1-4))
+                  )
+             (if (< 0.0 f0-1)
+                 (vector-float*! s4-1 s4-1 -1.0)
                  )
-               (when (send-event-function gp-0 a1-7)
-                 (set! (-> self no-collision-timer) (the-as uint (-> self clock frame-counter)))
-                 (let ((v1-18 (-> self root-override root-prim)))
-                   (set! (-> v1-18 prim-core collide-as) (collide-spec))
-                   (set! (-> v1-18 prim-core collide-with) (collide-spec))
-                   )
-                 0
-                 )
+             )
+           (when (send-event gp-0 'attack (-> arg3 param 0) (static-attack-info ((id (-> self attack-id))
+                                                                                 (vector s4-1)
+                                                                                 (shove-back (-> self shove-vec z))
+                                                                                 (shove-up (-> self shove-vec y))
+                                                                                 (control (if (focus-test? gp-0 board)
+                                                                                              1.0
+                                                                                              0.0
+                                                                                              )
+                                                                                          )
+                                                                                 )
+                                                                                )
+                             )
+             (set! (-> self no-collision-timer) (the-as uint (current-time)))
+             (let ((v1-18 (-> self root root-prim)))
+               (set! (-> v1-18 prim-core collide-as) (collide-spec))
+               (set! (-> v1-18 prim-core collide-with) (collide-spec))
                )
+             0
              )
            )
          )
        )
-      )
+     )
     )
   )
 
 ;; WARN: Return type mismatch symbol vs none.
 (defbehavior strip-trans strip-hazard ()
   (when (and (nonzero? (-> self no-collision-timer))
-             (>= (- (-> self clock frame-counter) (the-as int (-> self no-collision-timer))) (seconds 0.3))
+             (time-elapsed? (the-as int (-> self no-collision-timer)) (seconds 0.3))
              )
-    (let ((v1-7 (-> self root-override root-prim)))
-      (set! (-> v1-7 prim-core collide-as) (-> self root-override backup-collide-as))
-      (set! (-> v1-7 prim-core collide-with) (-> self root-override backup-collide-with))
+    (let ((v1-7 (-> self root root-prim)))
+      (set! (-> v1-7 prim-core collide-as) (-> self root backup-collide-as))
+      (set! (-> v1-7 prim-core collide-with) (-> self root backup-collide-with))
       )
     (set! (-> self no-collision-timer) (the-as uint 0))
     0
@@ -132,7 +118,7 @@
     (set! (-> a1-0 options) (overlaps-others-options oo0))
     (set! (-> a1-0 collide-with-filter) (the-as collide-spec -1))
     (set! (-> a1-0 tlist) *touching-list*)
-    (find-overlapping-shapes (-> self root-override) a1-0)
+    (find-overlapping-shapes (-> self root) a1-0)
     )
   (none)
   )
@@ -156,26 +142,25 @@
       (suspend)
       )
     #f
-    (none)
     )
-  :post (the-as (function none :behavior strip-hazard) transform-post)
+  :post transform-post
   )
 
-(defmethod init-from-entity! strip-hazard ((obj strip-hazard) (arg0 entity-actor))
+(defmethod init-from-entity! ((this strip-hazard) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
   (local-vars (sv-64 res-tag))
-  (set-vector! (-> obj shove-vec) 0.0 12288.0 24576.0 1.0)
-  (set! (-> obj no-collision-timer) (the-as uint 0))
+  (set-vector! (-> this shove-vec) 0.0 12288.0 24576.0 1.0)
+  (set! (-> this no-collision-timer) (the-as uint 0))
   (let* ((v1-1 *game-info*)
          (a0-5 (+ (-> v1-1 attack-id) 1))
          )
     (set! (-> v1-1 attack-id) a0-5)
-    (set! (-> obj attack-id) a0-5)
+    (set! (-> this attack-id) a0-5)
     )
   (let ((s4-0 (new 'stack-no-clear 'sync-info-params))
         (s3-0 1200)
@@ -198,22 +183,18 @@ This commonly includes things such as:
     (set! (-> s4-0 entity) arg0)
     (set! (-> s4-0 period) (the-as uint s3-0))
     (set! (-> s4-0 percent) 0.0)
-    (initialize! (-> obj sync) s4-0)
-    (sync-now! (-> obj sync) f30-0)
+    (initialize! (-> this sync) s4-0)
+    (sync-now! (-> this sync) f30-0)
     )
   (none)
   )
 
 (deftype fencespikes (strip-hazard)
-  ((start-quat   quaternion :inline :offset-assert 256)
-   (spin         float              :offset-assert 272)
-   (offset       float              :offset-assert 276)
-   (sparks-group uint32             :offset-assert 280)
+  ((start-quat    quaternion  :inline)
+   (spin          float)
+   (offset        float)
+   (sparks-group  uint32)
    )
-  :heap-base #xa0
-  :method-count-assert 21
-  :size-assert         #x11c
-  :flag-assert         #x1500a0011c
   )
 
 
@@ -229,37 +210,32 @@ This commonly includes things such as:
           (f0-0 (ja-aframe-num 0))
           )
       (cond
-        ((and (= gp-0 (-> self draw art-group data 3)) (>= f0-0 47.0) (>= 67.0 f0-0))
-         (spawn (-> self part) (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data 9)))
+        ((and (= gp-0 fencespikes-idle-ja) (>= f0-0 47.0) (>= 67.0 f0-0))
+         (spawn (-> self part) (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node fencespikes-lod0-jg head)))
          )
-        ((and (= gp-0 (-> self draw art-group data 3)) (>= f0-0 42.0) (>= 65.0 f0-0))
+        ((and (= gp-0 fencespikes-idle-ja) (>= f0-0 42.0) (>= 65.0 f0-0))
          (seek! (-> self spin) 393216.0 32768.0)
          )
-        ((and (= gp-0 (-> self draw art-group data 3)) (>= f0-0 66.0) (>= 78.0 f0-0))
+        ((and (= gp-0 fencespikes-idle-ja) (>= f0-0 66.0) (>= 78.0 f0-0))
          (seek! (-> self spin) 0.0 16384.0)
          )
         )
       )
-    (quaternion-rotate-local-x!
-      (-> self root-override quat)
-      (-> self root-override quat)
-      (* (-> self spin) (-> self clock seconds-per-frame))
-      )
+    (quaternion-rotate-local-x! (-> self root quat) (-> self root quat) (* (-> self spin) (seconds-per-frame)))
     (strip-trans)
-    (none)
     )
   )
 
 ;; WARN: Return type mismatch object vs none.
-(defmethod init-from-entity! fencespikes ((obj fencespikes) (arg0 entity-actor))
+(defmethod init-from-entity! ((this fencespikes) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
   (local-vars (sv-16 string))
-  (let ((s4-0 (new 'process 'collide-shape-moving obj (collide-list-enum hit-by-player))))
+  (let ((s4-0 (new 'process 'collide-shape-moving this (collide-list-enum hit-by-player))))
     (set! (-> s4-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s4-0 reaction) cshape-reaction-default)
     (set! (-> s4-0 no-reaction)
@@ -291,40 +267,36 @@ This commonly includes things such as:
       (set! (-> s4-0 backup-collide-as) (-> v1-19 prim-core collide-as))
       (set! (-> s4-0 backup-collide-with) (-> v1-19 prim-core collide-with))
       )
-    (set! (-> obj root-override) s4-0)
+    (set! (-> this root) s4-0)
     )
-  (process-drawable-from-entity! obj arg0)
+  (process-drawable-from-entity! this arg0)
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-fencespikes" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
   (let ((t9-9 (method-of-type strip-hazard init-from-entity!)))
-    (t9-9 obj arg0)
+    (t9-9 this arg0)
     )
-  (quaternion-copy! (-> obj start-quat) (-> obj root-override quat))
+  (quaternion-copy! (-> this start-quat) (-> this root quat))
   (set! sv-16 "#f")
   (let ((a0-24 (entity-lookup-part-group arg0 (& sv-16) 'art-name)))
     (when a0-24
       (let ((a0-25 (-> a0-24 0)))
         (if (and (nonzero? a0-25) (= (-> a0-25 type) sparticle-launch-group))
-            (set! (-> obj part) (create-launch-control a0-25 obj))
+            (set! (-> this part) (create-launch-control a0-25 this))
             )
         )
       )
     )
-  (logclear! (-> obj mask) (process-mask actor-pause))
-  (go (method-of-object obj idle))
+  (logclear! (-> this mask) (process-mask actor-pause))
+  (go (method-of-object this idle))
   (none)
   )
 
 (deftype pitspikes (strip-hazard)
-  ((spinner basic  :offset-assert 252)
+  ((spinner  basic)
    )
-  :heap-base #x80
-  :method-count-assert 21
-  :size-assert         #x100
-  :flag-assert         #x1500800100
   )
 
 
@@ -362,9 +334,11 @@ This commonly includes things such as:
           (t9-0)
           )
       )
-    (update-trans! (-> self sound) (vector<-cspace! (new 'static 'vector) (-> self node-list data 4)))
+    (update-trans!
+      (-> self sound)
+      (vector<-cspace! (new 'static 'vector) (joint-node pitspikes-lod0-jg rotatnode))
+      )
     (update! (-> self sound))
-    (none)
     )
   :post (behavior ()
     (let ((t9-0 (-> (method-of-type strip-hazard idle) post)))
@@ -372,37 +346,32 @@ This commonly includes things such as:
           ((the-as (function none) t9-0))
           )
       )
-    (let ((gp-0 (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data 3))))
-      (let ((f0-0 (quaternion-y-angle (-> self root-override quat))))
+    (let ((gp-0 (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node pitspikes-lod0-jg main))))
+      (let ((f0-0 (quaternion-y-angle (-> self root quat))))
         (set! (-> *pitspikes-rotate-pos* quad) (-> gp-0 quad))
         (set! (-> *pitspikes-rotate-pos* w) f0-0)
         )
       (spawn (-> self part) gp-0)
       )
-    (none)
     )
   )
 
-;; WARN: Return type mismatch strip-hazard vs pitspikes.
-(defmethod relocate pitspikes ((obj pitspikes) (arg0 int))
-  (if (nonzero? (-> obj spinner))
-      (&+! (-> obj spinner) arg0)
+(defmethod relocate ((this pitspikes) (offset int))
+  (if (nonzero? (-> this spinner))
+      (&+! (-> this spinner) offset)
       )
-  (the-as
-    pitspikes
-    ((the-as (function strip-hazard int strip-hazard) (find-parent-method pitspikes 7)) obj arg0)
-    )
+  (call-parent-method this offset)
   )
 
 ;; WARN: Return type mismatch object vs none.
-(defmethod init-from-entity! pitspikes ((obj pitspikes) (arg0 entity-actor))
+(defmethod init-from-entity! ((this pitspikes) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
-  (let ((s4-0 (new 'process 'collide-shape-moving obj (collide-list-enum hit-by-player))))
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
+  (let ((s4-0 (new 'process 'collide-shape-moving this (collide-list-enum hit-by-player))))
     (set! (-> s4-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s4-0 reaction) cshape-reaction-default)
     (set! (-> s4-0 no-reaction)
@@ -421,37 +390,33 @@ This commonly includes things such as:
       (set! (-> s4-0 backup-collide-as) (-> v1-9 prim-core collide-as))
       (set! (-> s4-0 backup-collide-with) (-> v1-9 prim-core collide-with))
       )
-    (set! (-> obj root-override) s4-0)
+    (set! (-> this root) s4-0)
     )
-  (process-drawable-from-entity! obj arg0)
+  (process-drawable-from-entity! this arg0)
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-pitspikes" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
   (let ((t9-6 (method-of-type strip-hazard init-from-entity!)))
-    (t9-6 obj arg0)
+    (t9-6 this arg0)
     )
-  (set! (-> obj spinner) (new 'process 'joint-mod-spinner obj 4 (new 'static 'vector :x 1.0 :w 1.0) 262144.0))
-  (set! (-> obj sound) (new
-                         'process
-                         'ambient-sound
-                         (static-sound-spec "pit-spikes" :fo-max 55)
-                         (vector<-cspace! (new 'static 'vector) (-> obj node-list data 4))
-                         )
+  (set! (-> this spinner) (new 'process 'joint-mod-spinner this 4 (new 'static 'vector :x 1.0 :w 1.0) 262144.0))
+  (set! (-> this sound) (new
+                          'process
+                          'ambient-sound
+                          (static-sound-spec "pit-spikes" :fo-max 55)
+                          (vector<-cspace! (new 'static 'vector) (-> this node-list data 4))
+                          )
         )
-  (set! (-> obj part) (create-launch-control (-> *part-group-id-table* 214) obj))
-  (logclear! (-> obj mask) (process-mask actor-pause))
-  (go (method-of-object obj idle))
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 214) this))
+  (logclear! (-> this mask) (process-mask actor-pause))
+  (go (method-of-object this idle))
   (none)
   )
 
 (deftype curtainsaw (strip-hazard)
   ()
-  :heap-base #x80
-  :method-count-assert 21
-  :size-assert         #xfc
-  :flag-assert         #x15008000fc
   )
 
 
@@ -469,9 +434,8 @@ This commonly includes things such as:
           (t9-0)
           )
       )
-    (update-trans! (-> self sound) (vector<-cspace! (new 'static 'vector) (-> self node-list data 3)))
+    (update-trans! (-> self sound) (vector<-cspace! (new 'static 'vector) (joint-node curtainsaw-lod0-jg main)))
     (update! (-> self sound))
-    (none)
     )
   :post (behavior ()
     (let ((t9-0 (-> (method-of-type strip-hazard idle) post)))
@@ -484,25 +448,24 @@ This commonly includes things such as:
       (set! (-> gp-0 y) 0.0)
       (set! (-> gp-0 z) 0.0)
       (set! (-> gp-0 w) 1.0)
-      (let ((s5-0 (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data 3))))
-        (vector-orient-by-quat! gp-0 gp-0 (-> self root-override quat))
+      (let ((s5-0 (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node curtainsaw-lod0-jg main))))
+        (vector-orient-by-quat! gp-0 gp-0 (-> self root quat))
         (vector+! s5-0 s5-0 gp-0)
         (spawn (-> self part) s5-0)
         )
       )
-    (none)
     )
   )
 
 ;; WARN: Return type mismatch object vs none.
-(defmethod init-from-entity! curtainsaw ((obj curtainsaw) (arg0 entity-actor))
+(defmethod init-from-entity! ((this curtainsaw) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
-  (let ((s4-0 (new 'process 'collide-shape-moving obj (collide-list-enum hit-by-player))))
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
+  (let ((s4-0 (new 'process 'collide-shape-moving this (collide-list-enum hit-by-player))))
     (set! (-> s4-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s4-0 reaction) cshape-reaction-default)
     (set! (-> s4-0 no-reaction)
@@ -521,80 +484,77 @@ This commonly includes things such as:
       (set! (-> s4-0 backup-collide-as) (-> v1-9 prim-core collide-as))
       (set! (-> s4-0 backup-collide-with) (-> v1-9 prim-core collide-with))
       )
-    (set! (-> obj root-override) s4-0)
+    (set! (-> this root) s4-0)
     )
-  (process-drawable-from-entity! obj arg0)
+  (process-drawable-from-entity! this arg0)
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-curtainsaw" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
   (let ((t9-6 (method-of-type strip-hazard init-from-entity!)))
-    (t9-6 obj arg0)
+    (t9-6 this arg0)
     )
-  (set! (-> obj sound) (new
-                         'process
-                         'ambient-sound
-                         (static-sound-spec "curtainsaw" :fo-max 55)
-                         (vector<-cspace! (new 'static 'vector) (-> obj node-list data 3))
-                         )
+  (set! (-> this sound) (new
+                          'process
+                          'ambient-sound
+                          (static-sound-spec "curtainsaw" :fo-max 55)
+                          (vector<-cspace! (new 'static 'vector) (-> this node-list data 3))
+                          )
         )
-  (set! (-> obj part) (create-launch-control (-> *part-group-id-table* 213) obj))
-  (logclear! (-> obj mask) (process-mask actor-pause))
-  (go (method-of-object obj idle))
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 213) this))
+  (logclear! (-> this mask) (process-mask actor-pause))
+  (go (method-of-object this idle))
   (none)
   )
 
 (deftype grenade-point (process-drawable)
-  ((root-override      collide-shape             :offset        128)
-   (camera-name        string                    :offset-assert 200)
-   (parented?          symbol                    :offset-assert 204)
-   (lightning-time     time-frame                :offset-assert 208)
-   (strike-table       (array vector)            :offset-assert 216)
-   (last-strike-index  int32                     :offset-assert 220)
-   (speed              meters                    :offset-assert 224)
-   (part2              sparticle-launch-control  :offset-assert 228)
-   (part3              sparticle-launch-control  :offset-assert 232)
-   (part-lightning-hit sparticle-launch-control  :offset-assert 236)
-   (enter-time         time-frame                :offset-assert 240)
-   (minimap            connection-minimap        :offset-assert 248)
+  ((root                collide-shape :override)
+   (camera-name         string)
+   (parented?           symbol)
+   (lightning-time      time-frame)
+   (strike-table        (array vector))
+   (last-strike-index   int32)
+   (speed               meters)
+   (part2               sparticle-launch-control)
+   (part3               sparticle-launch-control)
+   (part-lightning-hit  sparticle-launch-control)
+   (enter-time          time-frame)
+   (minimap             connection-minimap)
    )
-  :heap-base #x80
-  :method-count-assert 22
-  :size-assert         #xfc
-  :flag-assert         #x16008000fc
-  (:methods
-    (idle () _type_ :state 20)
-    (die () _type_ :state 21)
+  (:state-methods
+    idle
+    (die symbol)
     )
   )
 
 
 ;; WARN: Return type mismatch process-drawable vs grenade-point.
-(defmethod relocate grenade-point ((obj grenade-point) (arg0 int))
-  (if (nonzero? (-> obj part2))
-      (&+! (-> obj part2) arg0)
+(defmethod relocate ((this grenade-point) (offset int))
+  (if (nonzero? (-> this part2))
+      (&+! (-> this part2) offset)
       )
-  (if (nonzero? (-> obj part3))
-      (&+! (-> obj part3) arg0)
+  (if (nonzero? (-> this part3))
+      (&+! (-> this part3) offset)
       )
-  (if (nonzero? (-> obj part-lightning-hit))
-      (&+! (-> obj part-lightning-hit) arg0)
+  (if (nonzero? (-> this part-lightning-hit))
+      (&+! (-> this part-lightning-hit) offset)
       )
-  (the-as grenade-point ((method-of-type process-drawable relocate) obj arg0))
+  (the-as grenade-point ((method-of-type process-drawable relocate) this offset))
   )
 
-(defmethod deactivate grenade-point ((obj grenade-point))
-  (if (nonzero? (-> obj part2))
-      (kill-and-free-particles (-> obj part2))
+(defmethod deactivate ((this grenade-point))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (if (nonzero? (-> this part2))
+      (kill-and-free-particles (-> this part2))
       )
-  (if (nonzero? (-> obj part3))
-      (kill-and-free-particles (-> obj part3))
+  (if (nonzero? (-> this part3))
+      (kill-and-free-particles (-> this part3))
       )
-  (if (nonzero? (-> obj part-lightning-hit))
-      (kill-and-free-particles (-> obj part-lightning-hit))
+  (if (nonzero? (-> this part-lightning-hit))
+      (kill-and-free-particles (-> this part-lightning-hit))
       )
-  ((method-of-type process-drawable deactivate) obj)
+  ((method-of-type process-drawable deactivate) this)
   (none)
   )
 
@@ -759,58 +719,51 @@ This commonly includes things such as:
 
 (defstate idle (grenade-point)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (the-as object (case event-type
-                     (('touch 'attack)
-                      (send-event proc 'ramp)
-                      (when (logtest? (-> self level task-mask) (task-mask task1))
-                        (cond
-                          ((send-event proc 'grenade (-> self speed))
-                           (if (-> self camera-name)
-                               (set-setting! 'entity-name (-> self camera-name) 0 -1)
-                               )
-                           )
-                          ((>= (- (-> self clock frame-counter) (-> self enter-time)) (seconds 3))
-                           (talker-speech-class-method-12 (-> *talker-speech* 194) 1)
-                           )
-                          )
-                        (set! (-> self enter-time) (-> self clock frame-counter))
-                        )
-                      #f
-                      )
-                     (('exit)
-                      (the-as object (remove-setting! 'entity-name))
-                      )
-                     (('die)
-                      enter-state
-                      #t
-                      (go-virtual die)
-                      )
-                     (('kill)
-                      (process-entity-status! self (entity-perm-status subtask-complete) #t)
-                      (cleanup-for-death self)
-                      (the-as object (deactivate self))
-                      )
-                     )
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('touch 'attack)
+       (send-event proc 'ramp)
+       (when (logtest? (-> self level task-mask) (task-mask task1))
+         (cond
+           ((send-event proc 'grenade (-> self speed))
+            (if (-> self camera-name)
+                (set-setting! 'entity-name (-> self camera-name) 0.0 -1)
+                )
             )
+           ((time-elapsed? (-> self enter-time) (seconds 3))
+            (talker-speech-class-method-12 (-> *talker-speech* 194) 1)
+            )
+           )
+         (set-time! (-> self enter-time))
+         )
+       #f
+       )
+      (('exit)
+       (remove-setting! 'entity-name)
+       )
+      (('die)
+       (go-virtual die #t)
+       )
+      (('kill)
+       (process-entity-status! self (entity-perm-status subtask-complete) #t)
+       (cleanup-for-death self)
+       (deactivate self)
+       )
+      )
     )
   :enter (behavior ()
-    (set! (-> self lightning-time) (+ (-> self clock frame-counter) -1))
-    (none)
+    (set! (-> self lightning-time) (+ (current-time) -1))
     )
   :exit (behavior ()
     (remove-setting! 'entity-name)
-    (none)
     )
-  :code (the-as (function none :behavior grenade-point) sleep-code)
+  :code sleep-code
   :post (behavior ()
-    (spawn (-> self part) (-> self root-override trans))
-    (when (< (-> self lightning-time) (-> self clock frame-counter))
-      (set! (-> self lightning-time)
-            (+ (-> self clock frame-counter) (the int (* 300.0 (rand-vu-float-range 0.6 1.4))))
-            )
+    (spawn (-> self part) (-> self root trans))
+    (when (< (-> self lightning-time) (current-time))
+      (set! (-> self lightning-time) (+ (current-time) (the int (* 300.0 (rand-vu-float-range 0.6 1.4)))))
       (let ((s5-0 (new 'stack-no-clear 'vector)))
-        (set! (-> s5-0 quad) (-> self root-override trans quad))
+        (set! (-> s5-0 quad) (-> self root trans quad))
         (let* ((gp-1 (-> self strike-table (-> self last-strike-index)))
                (s4-1 (vector-! (new 'stack-no-clear 'vector) gp-1 s5-0))
                (a1-3 (vector-normalize-copy! (new 'stack-no-clear 'vector) s4-1 13107.2))
@@ -850,62 +803,59 @@ This commonly includes things such as:
         )
       )
     (update! (-> self sound))
-    (none)
     )
   )
 
 (defstate die (grenade-point)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (the-as object (case event-type
-                     (('kill)
-                      (process-entity-status! self (entity-perm-status subtask-complete) #t)
-                      (cleanup-for-death self)
-                      (the-as symbol (deactivate self))
-                      )
-                     )
-            )
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('kill)
+       (process-entity-status! self (entity-perm-status subtask-complete) #t)
+       (cleanup-for-death self)
+       (deactivate self)
+       )
+      )
     )
-  :code (behavior ()
+  :code (behavior ((arg0 symbol))
     (play-communicator-speech! (-> *talker-speech* 194))
     (process-entity-status! self (entity-perm-status subtask-complete) #t)
     (kill-and-free-particles (-> self part))
     (stop! (-> self sound))
     (set! (-> self sound spec) (static-sound-spec "eco-plume2" :fo-min 5 :fo-max 90))
-    (while (not (task-complete? *game-info* (the-as game-task (-> self entity extra perm task))))
-      (spawn (-> self part2) (-> self root-override trans))
+    (while (not (task-complete? *game-info* (-> self entity extra perm task)))
+      (spawn (-> self part2) (-> self root trans))
       (update! (-> self sound))
       (suspend)
       )
     (kill-and-free-particles (-> self part2))
     (until #f
-      (spawn (-> self part3) (-> self root-override trans))
+      (spawn (-> self part3) (-> self root trans))
       (update! (-> self sound))
       (suspend)
       )
     #f
-    (none)
     )
   )
 
 ;; WARN: Return type mismatch object vs none.
-(defmethod init-from-entity! grenade-point ((obj grenade-point) (arg0 entity-actor))
+(defmethod init-from-entity! ((this grenade-point) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
-  (set! (-> obj parented?) #f)
-  (when (not (-> obj parented?))
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
+  (set! (-> this parented?) #f)
+  (when (not (-> this parented?))
     (let ((a1-1 (handle->process (-> *game-info* controller 0))))
       (when a1-1
-        (change-parent obj a1-1)
-        (set! (-> obj parented?) #t)
+        (change-parent this a1-1)
+        (set! (-> this parented?) #t)
         )
       )
     )
-  (let ((s4-0 (new 'process 'collide-shape obj (collide-list-enum hit-by-player))))
+  (let ((s4-0 (new 'process 'collide-shape this (collide-list-enum hit-by-player))))
     (let ((v1-10 (new 'process 'collide-shape-prim-sphere s4-0 (the-as uint 0))))
       (set! (-> v1-10 prim-core collide-as) (collide-spec backgnd obstacle))
       (set-vector! (-> v1-10 local-sphere) 0.0 0.0 0.0 81920.0)
@@ -917,57 +867,44 @@ This commonly includes things such as:
       (set! (-> s4-0 backup-collide-as) (-> v1-13 prim-core collide-as))
       (set! (-> s4-0 backup-collide-with) (-> v1-13 prim-core collide-with))
       )
-    (set! (-> obj root-override) s4-0)
+    (set! (-> this root) s4-0)
     )
-  (process-drawable-from-entity! obj arg0)
-  (set! (-> obj camera-name) (res-lump-struct (-> obj entity) 'camera-name string))
-  (set! (-> obj part) (create-launch-control (-> *part-group-id-table* 215) obj))
-  (set! (-> obj part2) (create-launch-control (-> *part-group-id-table* 216) obj))
-  (set! (-> obj part3) (create-launch-control (-> *part-group-id-table* 217) obj))
-  (set! (-> obj part-lightning-hit) (create-launch-control (-> *part-group-id-table* 218) obj))
-  (set! (-> obj lightning-time) 0)
-  (set! (-> obj strike-table)
+  (process-drawable-from-entity! this arg0)
+  (set! (-> this camera-name) (res-lump-struct (-> this entity) 'camera-name string))
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 215) this))
+  (set! (-> this part2) (create-launch-control (-> *part-group-id-table* 216) this))
+  (set! (-> this part3) (create-launch-control (-> *part-group-id-table* 217) this))
+  (set! (-> this part-lightning-hit) (create-launch-control (-> *part-group-id-table* 218) this))
+  (set! (-> this lightning-time) 0)
+  (set! (-> this strike-table)
         (-> *grenade-point-strike-table*
-            (+ (res-lump-value (-> obj entity) 'extra-id uint128 :default (the-as uint128 1) :time -1000000000.0) -1)
+            (+ (res-lump-value (-> this entity) 'extra-id uint128 :default (the-as uint128 1) :time -1000000000.0) -1)
             )
         )
-  (set! (-> obj last-strike-index) (rand-vu-int-range 0 19))
-  (set! (-> obj speed) (res-lump-float (-> obj entity) 'speed :default 118784.0))
-  (set! (-> obj sound) (new
-                         'process
-                         'ambient-sound
-                         (static-sound-spec "eco-plume1" :fo-min 5 :fo-max 90)
-                         (-> obj root-override trans)
-                         )
+  (set! (-> this last-strike-index) (rand-vu-int-range 0 19))
+  (set! (-> this speed) (res-lump-float (-> this entity) 'speed :default 118784.0))
+  (set! (-> this sound)
+        (new 'process 'ambient-sound (static-sound-spec "eco-plume1" :fo-min 5 :fo-max 90) (-> this root trans))
         )
-  (update-transforms (-> obj root-override))
-  (logclear! (-> obj mask) (process-mask actor-pause))
-  (cond
-    ((or (and (-> obj entity) (logtest? (-> obj entity extra perm status) (entity-perm-status subtask-complete)))
-         (task-complete? *game-info* (game-task strip-grenade))
-         )
-     enter-state
-     (go (method-of-object obj die))
-     )
-    (else
-      (go (method-of-object obj idle))
+  (update-transforms (-> this root))
+  (logclear! (-> this mask) (process-mask actor-pause))
+  (if (or (and (-> this entity) (logtest? (-> this entity extra perm status) (entity-perm-status subtask-complete)))
+          (task-complete? *game-info* (game-task strip-grenade))
+          )
+      (go (method-of-object this die) #f)
+      (go (method-of-object this idle))
       )
-    )
   (none)
   )
 
 (deftype grenade (projectile)
-  ((tumble-quat  quaternion :inline :offset-assert 480)
-   (blast-radius float              :offset-assert 496)
-   (end-target   handle             :offset-assert 504)
+  ((tumble-quat   quaternion  :inline)
+   (blast-radius  float)
+   (end-target    handle)
    )
-  :heap-base #x180
-  :method-count-assert 42
-  :size-assert         #x200
-  :flag-assert         #x2a01800200
   (:methods
-    (grenade-method-40 (_type_) none 40)
-    (grenade-method-41 (_type_) none 41)
+    (grenade-method-40 (_type_) none)
+    (grenade-method-41 (_type_) none)
     )
   )
 
@@ -985,22 +922,22 @@ This commonly includes things such as:
   )
 
 (defpart 1118
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xca :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-y (meters 0.07))
-    (sp-flt spt-scale-x (meters 1))
-    (sp-flt spt-rot-x 409.6)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-rnd-flt spt-g 64.0 64.0 1.0)
-    (sp-rnd-flt spt-b 128.0 128.0 1.0)
-    (sp-rnd-flt spt-a 32.0 12.0 1.0)
-    (sp-flt spt-scalevel-x (meters -0.0033333334))
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-flt spt-fade-a -0.32)
-    (sp-int spt-timer 150)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-0 sp-cpuinfo-flag-2 glow)
-    (sp-flt spt-userdata 2048.0)
+  :init-specs ((:texture (glow-soft effects))
+    (:num 1.0)
+    (:y (meters 0.07))
+    (:scale-x (meters 1))
+    (:rot-x (degrees 2.25))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 64.0 64.0)
+    (:b 128.0 128.0)
+    (:a 32.0 12.0)
+    (:scalevel-x (meters -0.0033333334))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-a -0.32)
+    (:timer (seconds 0.5))
+    (:flags (sp-cpuinfo-flag-0 sp-cpuinfo-flag-2 glow))
+    (:userdata 2048.0)
     )
   )
 
@@ -1009,105 +946,101 @@ This commonly includes things such as:
   :duration (seconds 2)
   :flags (use-local-clock)
   :bounds (static-bspherem 0 0 0 6)
-  :parts ((sp-item 1119 :period 600 :length 5)
-    (sp-item 1120 :fade-after (meters 80) :falloff-to (meters 80) :period 600 :length 40)
-    (sp-item 1121 :period 600 :length 20)
-    (sp-item 1122 :fade-after (meters 120) :falloff-to (meters 120) :period 600 :length 20)
+  :parts ((sp-item 1119 :period (seconds 2) :length (seconds 0.017))
+    (sp-item 1120 :fade-after (meters 80) :falloff-to (meters 80) :period (seconds 2) :length (seconds 0.135))
+    (sp-item 1121 :period (seconds 2) :length (seconds 0.067))
+    (sp-item 1122 :fade-after (meters 120) :falloff-to (meters 120) :period (seconds 2) :length (seconds 0.067))
     )
   )
 
 (defpart 1120
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xc9 :page #xc))
-    (sp-flt spt-num 6.0)
-    (sp-rnd-flt spt-scale-x (meters 0.2) (meters 0.4) 1.0)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-rnd-flt spt-r 192.0 64.0 1.0)
-    (sp-rnd-flt spt-g 0.0 64.0 1.0)
-    (sp-flt spt-b 192.0)
-    (sp-rnd-flt spt-a 32.0 96.0 1.0)
-    (sp-rnd-flt spt-vel-y (meters 0.026666667) (meters 0.10666667) 1.0)
-    (sp-flt spt-scalevel-x (meters -0.0016666667))
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-rnd-flt spt-accel-y -0.68266666 -0.68266666 1.0)
-    (sp-flt spt-friction 0.9)
-    (sp-int spt-timer 300)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-14)
-    (sp-int-plain-rnd spt-next-time 30 29 1)
-    (sp-launcher-by-id spt-next-launcher 1123)
-    (sp-rnd-flt spt-conerot-x (degrees 0.0) (degrees 180.0) 1.0)
-    (sp-rnd-flt spt-conerot-y (degrees 0.0) (degrees 360.0) 1.0)
-    (sp-rnd-flt spt-conerot-radius (meters 2) (meters 4) 1.0)
+  :init-specs ((:texture (hotdot effects))
+    (:num 6.0)
+    (:scale-x (meters 0.2) (meters 0.4))
+    (:scale-y :copy scale-x)
+    (:r 192.0 64.0)
+    (:g 0.0 64.0)
+    (:b 192.0)
+    (:a 32.0 96.0)
+    (:vel-y (meters 0.026666667) (meters 0.10666667))
+    (:scalevel-x (meters -0.0016666667))
+    (:scalevel-y :copy scalevel-x)
+    (:accel-y (meters -0.00016666666) (meters -0.00016666666))
+    (:friction 0.9)
+    (:timer (seconds 1))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-14))
+    (:next-time (seconds 0.1) (seconds 0.097))
+    (:next-launcher 1123)
+    (:conerot-x (degrees 0) (degrees 180))
+    (:conerot-y (degrees 0) (degrees 360))
+    (:conerot-radius (meters 2) (meters 4))
     )
   )
 
 (defpart 1123
-  :init-specs ((sp-flt spt-fade-r 0.0) (sp-flt spt-fade-g 0.0) (sp-flt spt-fade-b 0.0) (sp-flt spt-fade-a -1.4222223))
+  :init-specs ((:fade-r 0.0) (:fade-g 0.0) (:fade-b 0.0) (:fade-a -1.4222223))
   )
 
 (defpart 1122
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xc9 :page #xc))
-    (sp-flt spt-num 3.0)
-    (sp-flt spt-scale-x (meters 0.2))
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 180.0) 1.0)
-    (sp-flt spt-scale-y (meters 8))
-    (sp-flt spt-r 196.0)
-    (sp-flt spt-g 0.0)
-    (sp-flt spt-b 255.0)
-    (sp-rnd-flt spt-a 32.0 64.0 1.0)
-    (sp-flt spt-scalevel-y (meters 0.42666668))
-    (sp-flt spt-fade-a -1.6)
-    (sp-int spt-timer 60)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 sp-cpuinfo-flag-14)
+  :init-specs ((:texture (hotdot effects))
+    (:num 3.0)
+    (:scale-x (meters 0.2))
+    (:rot-z (degrees 0) (degrees 180))
+    (:scale-y (meters 8))
+    (:r 196.0)
+    (:g 0.0)
+    (:b 255.0)
+    (:a 32.0 64.0)
+    (:scalevel-y (meters 0.42666668))
+    (:fade-a -1.6)
+    (:timer (seconds 0.2))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 sp-cpuinfo-flag-14))
     )
   )
 
 (defpart 1119
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #x29 :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-scale-x (meters 16))
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-rnd-flt spt-r 192.0 32.0 1.0)
-    (sp-flt spt-g 0.0)
-    (sp-flt spt-b 255.0)
-    (sp-flt spt-a 96.0)
-    (sp-flt spt-fade-a -1.7454545)
-    (sp-int spt-timer 54)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 sp-cpuinfo-flag-14)
+  :init-specs ((:texture (starflash effects))
+    (:num 1.0)
+    (:scale-x (meters 16))
+    (:scale-y :copy scale-x)
+    (:r 192.0 32.0)
+    (:g 0.0)
+    (:b 255.0)
+    (:a 96.0)
+    (:fade-a -1.7454545)
+    (:timer (seconds 0.18))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 sp-cpuinfo-flag-14))
     )
   )
 
 (defpart 1121
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :page #xc))
-    (sp-flt spt-num 4.0)
-    (sp-rnd-flt spt-scale-x (meters 2.5) (meters 1.5) 1.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 360.0) 1.0)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 128.0)
-    (sp-flt spt-g 32.0)
-    (sp-rnd-flt spt-b 96.0 64.0 1.0)
-    (sp-rnd-flt spt-a 64.0 64.0 1.0)
-    (sp-rnd-flt spt-vel-y (meters 0.053333335) (meters 0.013333334) 1.0)
-    (sp-flt spt-scalevel-x (meters 0.013333334))
-    (sp-rnd-flt spt-rotvel-z (degrees -0.3) (degrees 0.6) 1.0)
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-flt spt-fade-a -1.6)
-    (sp-rnd-flt spt-accel-y 0.68266666 0.68266666 1.0)
-    (sp-flt spt-friction 0.8)
-    (sp-int spt-timer 510)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-14)
-    (sp-int spt-next-time 42)
-    (sp-launcher-by-id spt-next-launcher 1124)
-    (sp-rnd-flt spt-conerot-x (degrees 0.0) (degrees 180.0) 1.0)
-    (sp-rnd-flt spt-conerot-y (degrees 0.0) (degrees 360.0) 1.0)
+  :init-specs ((:texture (bigpuff effects))
+    (:num 4.0)
+    (:scale-x (meters 2.5) (meters 1.5))
+    (:rot-z (degrees 0) (degrees 360))
+    (:scale-y :copy scale-x)
+    (:r 128.0)
+    (:g 32.0)
+    (:b 96.0 64.0)
+    (:a 64.0 64.0)
+    (:vel-y (meters 0.053333335) (meters 0.013333334))
+    (:scalevel-x (meters 0.013333334))
+    (:rotvel-z (degrees -0.3) (degrees 0.6))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-a -1.6)
+    (:accel-y (meters 0.00016666666) (meters 0.00016666666))
+    (:friction 0.8)
+    (:timer (seconds 1.7))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-14))
+    (:next-time (seconds 0.14))
+    (:next-launcher 1124)
+    (:conerot-x (degrees 0) (degrees 180))
+    (:conerot-y (degrees 0) (degrees 360))
     )
   )
 
 (defpart 1124
-  :init-specs ((sp-flt spt-fade-r -0.53333336)
-    (sp-flt spt-fade-g -1.0666667)
-    (sp-flt spt-fade-b -0.53333336)
-    (sp-flt spt-fade-a -0.53333336)
-    )
+  :init-specs ((:fade-r -0.53333336) (:fade-g -1.0666667) (:fade-b -0.53333336) (:fade-a -0.53333336))
   )
 
 (defpartgroup group-grenade-fired
@@ -1119,37 +1052,36 @@ This commonly includes things such as:
   )
 
 (defpart 1125
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :page #xc))
-    (sp-flt spt-num 6.0)
-    (sp-rnd-flt spt-scale-x (meters 0.6) (meters 0.4) 1.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 360.0) 1.0)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-rnd-flt spt-r 16.0 4.0 1.0)
-    (sp-rnd-flt spt-g 8.0 4.0 1.0)
-    (sp-rnd-flt spt-b 16.0 4.0 1.0)
-    (sp-rnd-flt spt-a 32.0 32.0 1.0)
-    (sp-rnd-flt spt-vel-y (meters 0.01) (meters 0.0026666666) 1.0)
-    (sp-flt spt-scalevel-x (meters 0.0016666667))
-    (sp-rnd-flt spt-rotvel-z (degrees -0.2) (degrees 0.4) 1.0)
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-flt spt-fade-r -0.35555556)
-    (sp-flt spt-fade-g -0.35555556)
-    (sp-flt spt-fade-b -0.35555556)
-    (sp-flt spt-fade-a -0.30476192)
-    (sp-flt spt-accel-y -1.3653333)
-    (sp-int spt-timer 120)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2)
-    (sp-int spt-next-time 60)
-    (sp-launcher-by-id spt-next-launcher 1126)
-    (sp-rnd-flt spt-conerot-x (degrees 60.0) (degrees 30.0) 1.0)
-    (sp-rnd-flt spt-conerot-y (degrees 0.0) (degrees 360.0) 1.0)
-    (sp-rnd-flt spt-rotate-y (degrees 0.0) (degrees 180.0) 1.0)
+  :init-specs ((:texture (bigpuff effects))
+    (:num 6.0)
+    (:scale-x (meters 0.6) (meters 0.4))
+    (:rot-z (degrees 0) (degrees 360))
+    (:scale-y :copy scale-x)
+    (:r 16.0 4.0)
+    (:g 8.0 4.0)
+    (:b 16.0 4.0)
+    (:a 32.0 32.0)
+    (:vel-y (meters 0.01) (meters 0.0026666666))
+    (:scalevel-x (meters 0.0016666667))
+    (:rotvel-z (degrees -0.2) (degrees 0.4))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-r -0.35555556)
+    (:fade-g -0.35555556)
+    (:fade-b -0.35555556)
+    (:fade-a -0.30476192)
+    (:accel-y (meters -0.00033333333))
+    (:timer (seconds 0.4))
+    (:flags (sp-cpuinfo-flag-2))
+    (:next-time (seconds 0.2))
+    (:next-launcher 1126)
+    (:conerot-x (degrees 60) (degrees 30))
+    (:conerot-y (degrees 0) (degrees 360))
+    (:rotate-y (degrees 0) (degrees 180))
     )
   )
 
-(defmethod draw-laser-sight grenade ((obj grenade))
-  "TODO - confirm If applicable, draw the laser sight particles
-:virtual"
+(defmethod draw-laser-sight ((this grenade))
+  "TODO - confirm If applicable, draw the laser sight particles"
   (let ((gp-0 (get-process *default-dead-pool* part-tracker #x4000)))
     (when gp-0
       (let ((t9-1 (method-of-type part-tracker activate)))
@@ -1170,7 +1102,7 @@ This commonly includes things such as:
             (t2-0 #f)
             (t3-0 *launch-matrix*)
             )
-        (set! (-> t3-0 trans quad) (-> obj root-override trans quad))
+        (set! (-> t3-0 trans quad) (-> this root trans quad))
         ((the-as (function object object object object object object object object none) t9-2)
          a0-3
          a1-2
@@ -1189,15 +1121,15 @@ This commonly includes things such as:
   (none)
   )
 
-(defmethod spawn-impact-particles grenade ((obj grenade))
+(defmethod spawn-impact-particles ((this grenade))
   "Spawns associated particles with the projectile if applicable"
-  ((method-of-type projectile spawn-impact-particles) obj)
+  ((method-of-type projectile spawn-impact-particles) this)
   (ja-post)
   0
   (none)
   )
 
-(defmethod spawn-shell-particles grenade ((obj grenade))
+(defmethod spawn-shell-particles ((this grenade))
   "TODO - confirm"
   (let ((gp-0 (get-process *default-dead-pool* part-tracker #x4000)))
     (when gp-0
@@ -1219,7 +1151,7 @@ This commonly includes things such as:
             (t2-0 #f)
             (t3-0 *launch-matrix*)
             )
-        (set! (-> t3-0 trans quad) (-> obj root-override trans quad))
+        (set! (-> t3-0 trans quad) (-> this root trans quad))
         ((the-as (function object object object object object object object object none) t9-2)
          a0-3
          a1-2
@@ -1238,7 +1170,7 @@ This commonly includes things such as:
   (none)
   )
 
-(defmethod play-impact-sound grenade ((obj grenade) (arg0 projectile-options))
+(defmethod play-impact-sound ((this grenade) (arg0 projectile-options))
   (let ((v1-0 arg0))
     (cond
       ((zero? v1-0)
@@ -1255,8 +1187,8 @@ This commonly includes things such as:
 
 (defstate impact (grenade)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (case event-type
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
       (('touched)
        (let* ((s4-0 proc)
               (v1-1 (if (type? s4-0 process-drawable)
@@ -1268,7 +1200,7 @@ This commonly includes things such as:
            (let ((a0-3 (-> v1-1 root))
                  (a1-2 (new 'stack-no-clear 'collide-query))
                  )
-             (let ((v1-4 (-> self root-override root-prim prim-core))
+             (let ((v1-4 (-> self root root-prim prim-core))
                    (a0-5 (-> (the-as collide-shape a0-3) root-prim prim-core))
                    )
                0.0
@@ -1280,23 +1212,12 @@ This commonly includes things such as:
                (set! (-> v1-5 collide-with) (collide-spec backgnd))
                (set! (-> v1-5 ignore-process0) self)
                (set! (-> v1-5 ignore-process1) #f)
-               (set! (-> v1-5 ignore-pat) (-> self root-override pat-ignore-mask))
+               (set! (-> v1-5 ignore-pat) (-> self root pat-ignore-mask))
                (set! (-> v1-5 action-mask) (collide-action solid))
                )
-             (when (< (fill-and-probe-using-line-sphere *collide-cache* a1-2) 0.0)
-               (let ((a1-3 (new 'stack-no-clear 'event-message-block)))
-                 (set! (-> a1-3 from) (process->ppointer self))
-                 (set! (-> a1-3 num-params) 2)
-                 (set! (-> a1-3 message) 'attack)
-                 (set! (-> a1-3 param 0) (-> event param 0))
-                 (let ((v1-12 (new 'static 'attack-info :mask (attack-info-mask mode id))))
-                   (set! (-> v1-12 id) (-> self attack-id))
-                   (set! (-> v1-12 mode) 'explode)
-                   (set! (-> a1-3 param 1) (the-as uint v1-12))
-                   )
-                 (send-event-function proc a1-3)
+             (if (< (fill-and-probe-using-line-sphere *collide-cache* a1-2) 0.0)
+                 (send-event proc 'attack (-> block param 0) (static-attack-info ((id (-> self attack-id)) (mode 'explode))))
                  )
-               )
              )
            )
          )
@@ -1309,14 +1230,13 @@ This commonly includes things such as:
           (t9-0)
           )
       )
-    (set! (-> self state-time) (-> self clock frame-counter))
+    (set-time! (-> self state-time))
     (send-event (handle->process (-> self end-target)) 'die)
     (remove-setting! 'point-of-interest)
-    (none)
     )
   :code (behavior ()
     (ja-channel-set! 0)
-    (let ((v1-1 (-> self root-override root-prim)))
+    (let ((v1-1 (-> self root root-prim)))
       (set! (-> v1-1 local-sphere w) (-> self blast-radius))
       (set! (-> v1-1 prim-core world-sphere w) (-> self blast-radius))
       (set! (-> v1-1 prim-core collide-with)
@@ -1324,21 +1244,20 @@ This commonly includes things such as:
             )
       (set! (-> v1-1 prim-core collide-as) (collide-spec enemy))
       )
-    (update-transforms (-> self root-override))
+    (update-transforms (-> self root))
     (let ((a1-0 (new 'stack-no-clear 'overlaps-others-params)))
       (set! (-> a1-0 options) (overlaps-others-options))
       (set! (-> a1-0 collide-with-filter) (the-as collide-spec -1))
       (set! (-> a1-0 tlist) *touching-list*)
-      (find-overlapping-shapes (-> self root-override) a1-0)
+      (find-overlapping-shapes (-> self root) a1-0)
       )
     (suspend)
-    (let ((v1-9 (-> self root-override root-prim)))
+    (let ((v1-9 (-> self root root-prim)))
       (set! (-> v1-9 prim-core collide-as) (collide-spec))
       (set! (-> v1-9 prim-core collide-with) (collide-spec))
       )
     0
     (deactivate self)
-    (none)
     )
   )
 
@@ -1346,47 +1265,43 @@ This commonly includes things such as:
   :virtual #t
   :enter (behavior ()
     (go-virtual impact)
-    (none)
     )
   )
 
-(defmethod grenade-method-40 grenade ((obj grenade))
-  (let ((s5-0 (the-as process-drawable (-> obj end-target process 0))))
+(defmethod grenade-method-40 ((this grenade))
+  (let ((s5-0 (the-as process-drawable (-> this end-target process 0))))
     (when s5-0
-      (set! (-> obj root-override transv x) (* 4.0 (- (-> s5-0 root trans x) (-> obj root-override trans x))))
-      (set! (-> obj root-override transv z) (* 4.0 (- (-> s5-0 root trans z) (-> obj root-override trans z))))
-      (let ((v1-12 (-> obj root-override transv)))
+      (set! (-> this root transv x) (* 4.0 (- (-> s5-0 root trans x) (-> this root trans x))))
+      (set! (-> this root transv z) (* 4.0 (- (-> s5-0 root trans z) (-> this root trans z))))
+      (let ((v1-12 (-> this root transv)))
         (if (< (sqrtf (+ (* (-> v1-12 x) (-> v1-12 x)) (* (-> v1-12 z) (-> v1-12 z)))) 16384.0)
-            (vector-xz-normalize! (-> obj root-override transv) 16384.0)
+            (vector-xz-normalize! (-> this root transv) 16384.0)
             )
         )
-      (if (or (logtest? (-> obj root-override status) (collide-status on-surface on-ground))
-              (< (vector-vector-distance (-> s5-0 root trans) (-> obj root-override trans)) 4096.0)
+      (if (or (logtest? (-> this root status) (collide-status on-surface on-ground))
+              (< (vector-vector-distance (-> s5-0 root trans) (-> this root trans)) 4096.0)
               )
-          (go (method-of-object obj impact))
+          (go (method-of-object this impact))
           )
       )
     )
-  (vector-v++!
-    (-> obj root-override transv)
-    (compute-acc-due-to-gravity (-> obj root-override) (new-stack-vector0) 1.0)
-    )
+  (vector-v++! (-> this root transv) (compute-acc-due-to-gravity (-> this root) (new-stack-vector0) 1.0))
   0
   (none)
   )
 
-(defmethod grenade-method-41 grenade ((obj grenade))
-  (quaternion*! (-> obj root-override quat) (-> obj root-override quat) (-> obj tumble-quat))
-  (projectile-move-fill-all-dirs obj)
-  (set-setting! 'point-of-interest 'abs (-> obj root-override trans) 0)
+(defmethod grenade-method-41 ((this grenade))
+  (quaternion*! (-> this root quat) (-> this root quat) (-> this tumble-quat))
+  (projectile-move-fill-all-dirs this)
+  (set-setting! 'point-of-interest 'abs (-> this root trans) 0)
   0
   (none)
   )
 
 ;; WARN: Return type mismatch collide-shape-moving vs none.
-(defmethod init-proj-collision! grenade ((obj grenade))
+(defmethod init-proj-collision! ((this grenade))
   "Init the [[projectile]]'s [[collide-shape]]"
-  (let ((s5-0 (new 'process 'collide-shape-moving obj (collide-list-enum hit-by-player))))
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum hit-by-player))))
     (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s5-0 reaction) cshape-reaction-projectile)
     (set! (-> s5-0 no-reaction)
@@ -1410,49 +1325,48 @@ This commonly includes things such as:
       )
     (set! (-> s5-0 max-iteration-count) (the-as uint 2))
     (set! (-> s5-0 event-self) 'touched)
-    (set! (-> obj root-override) s5-0)
+    (set! (-> this root) s5-0)
     )
   (none)
   )
 
-(defmethod init-proj-settings! grenade ((obj grenade))
-  "Init relevant settings for the [[projectile]] such as gravity, speed, timeout, etc
-:virtual"
+(defmethod init-proj-settings! ((this grenade))
+  "Init relevant settings for the [[projectile]] such as gravity, speed, timeout, etc"
   (with-pp
     (initialize-skeleton
-      obj
+      this
       (the-as skeleton-group (art-group-get-by-name *level* "skel-grenade" (the-as (pointer uint32) #f)))
       (the-as pair 0)
       )
-    (logclear! (-> obj options) (projectile-options proj-options-4))
-    (vector-normalize! (-> obj root-override transv) 1.0)
-    (set! (-> obj root-override transv y) (+ 1.0 (-> obj root-override transv y)))
-    (vector-normalize! (-> obj root-override transv) 184320.0)
-    (set! (-> obj attack-mode) 'eco-yellow)
-    (set! (-> obj blast-radius) 20480.0)
-    (set! (-> obj max-speed) 184320.0)
-    (set! (-> obj timeout) (seconds 3.6))
-    (set! (-> obj update-velocity) (method-of-object obj grenade-method-40))
-    (set! (-> obj move) (method-of-object obj grenade-method-41))
-    (set! (-> obj root-override dynam gravity y) 327680.0)
-    (set! (-> obj root-override dynam gravity-length) 327680.0)
-    (set! (-> obj root-override dynam gravity-max) 327680.0)
+    (logclear! (-> this options) (projectile-options proj-options-4))
+    (vector-normalize! (-> this root transv) 1.0)
+    (+! (-> this root transv y) 1.0)
+    (vector-normalize! (-> this root transv) 184320.0)
+    (set! (-> this attack-mode) 'eco-yellow)
+    (set! (-> this blast-radius) 20480.0)
+    (set! (-> this max-speed) 184320.0)
+    (set! (-> this timeout) (seconds 3.6))
+    (set! (-> this update-velocity) (method-of-object this grenade-method-40))
+    (set! (-> this move) (method-of-object this grenade-method-41))
+    (set! (-> this root dynam gravity y) 327680.0)
+    (set! (-> this root dynam gravity-length) 327680.0)
+    (set! (-> this root dynam gravity-max) 327680.0)
     (let ((f0-7 1092.2667))
-      (quaternion-axis-angle! (-> obj tumble-quat) 1.0 0.0 0.0 f0-7)
+      (quaternion-axis-angle! (-> this tumble-quat) 1.0 0.0 0.0 f0-7)
       )
     (let ((a1-5 (new 'stack-no-clear 'event-message-block)))
       (set! (-> a1-5 from) (process->ppointer pp))
       (set! (-> a1-5 num-params) 0)
       (set! (-> a1-5 message) 'target)
-      (let ((s5-1 (send-event-function (ppointer->process (-> obj parent)) a1-5)))
-        (set! (-> obj end-target) (process->handle (if (type? s5-1 process-drawable)
-                                                       (the-as process-drawable s5-1)
-                                                       )
-                                                   )
+      (let ((s5-1 (send-event-function (ppointer->process (-> this parent)) a1-5)))
+        (set! (-> this end-target) (process->handle (if (type? s5-1 process-drawable)
+                                                        (the-as process-drawable s5-1)
+                                                        )
+                                                    )
               )
         )
       )
-    (set! (-> obj part) (create-launch-control (-> *part-group-id-table* 235) obj))
+    (set! (-> this part) (create-launch-control (-> *part-group-id-table* 235) this))
     (cpad-set-buzz! (-> *cpad-list* cpads 0) 1 204 (seconds 0.1))
     (none)
     )
@@ -1480,15 +1394,15 @@ This commonly includes things such as:
 
 (set-subtask-hook!
   *game-info*
-  115
-  0
+  (game-task-node strip-grenade-explode)
+  TASK_MANAGER_INIT_HOOK
   (lambda :behavior task-manager
     ()
-    (set-setting! 'music 'danger10 0 0)
+    (set-setting! 'music 'danger10 0.0 0)
     (set! (-> *game-info* controller 0) (process->handle self))
     (set! (-> self entity) (the-as entity-actor (entity-by-name "grenade-point-1")))
     (set! (-> self actor-group 0) (res-lump-struct (-> self entity) 'actor-groups (pointer entity-actor)))
-    (set-setting! 'allow-continue #f 0 0)
+    (set-setting! 'allow-continue #f 0.0 0)
     (when (-> self actor-group 0)
       (dotimes (gp-0 (the-as int (-> self actor-group 0 0)))
         (let ((s5-0 (-> (&+ (-> self actor-group 0) (* gp-0 8)) 3)))
@@ -1508,19 +1422,19 @@ This commonly includes things such as:
 
 (set-subtask-hook!
   *game-info*
-  115
-  3
+  (game-task-node strip-grenade-explode)
+  TASK_MANAGER_CODE_HOOK
   (lambda :behavior task-manager
     ()
     (local-vars (sv-16 object))
-    (set! (-> self start-time) (-> self clock frame-counter))
+    (set-time! (-> self start-time))
     (set! (-> self total-time) (seconds 120))
     (set! (-> self hud-timer) (ppointer->handle (process-spawn hud-timer :init hud-init-by-other :to *target*)))
     (set! (-> self hud-counter) (ppointer->handle (process-spawn hud-plasmite :init hud-init-by-other :to self)))
-    (while (or (< (- (-> self clock frame-counter) (-> self start-time)) (-> self total-time))
-               (and *target* (logtest? (-> *target* focus-status) (focus-status in-air)))
+    (while (or (not (time-elapsed? (-> self start-time) (-> self total-time)))
+               (and *target* (focus-test? *target* in-air))
                )
-      (let ((v1-18 (the-as int (- (-> self total-time) (- (-> self clock frame-counter) (-> self start-time))))))
+      (let ((v1-18 (the-as int (- (-> self total-time) (- (current-time) (-> self start-time))))))
         (if (< (the-as time-frame v1-18) 0)
             (set! v1-18 0)
             )
@@ -1557,23 +1471,23 @@ This commonly includes things such as:
         (set! (-> self count) (the-as int sv-16))
         )
       (cond
-        ((and (>= (-> self clock frame-counter) (+ #x80e8 (-> self start-time)))
+        ((and (>= (current-time) (+ #x80e8 (-> self start-time)))
               (< (-> self state-time) (+ #x80e8 (-> self start-time)))
               )
          (talker-spawn-func (-> *talker-speech* 197) *entity-pool* (target-pos 0) (the-as region #f))
          )
-        ((and (>= (-> self clock frame-counter) (+ (-> self start-time) (seconds 90)))
+        ((and (>= (current-time) (+ (-> self start-time) (seconds 90)))
               (< (-> self state-time) (+ (-> self start-time) (seconds 90)))
               )
          (talker-spawn-func (-> *talker-speech* 196) *entity-pool* (target-pos 0) (the-as region #f))
          )
-        ((and (>= (-> self clock frame-counter) (+ (-> self start-time) (seconds 60)))
+        ((and (>= (current-time) (+ (-> self start-time) (seconds 60)))
               (< (-> self state-time) (+ (-> self start-time) (seconds 60)))
               )
          (talker-spawn-func (-> *talker-speech* 195) *entity-pool* (target-pos 0) (the-as region #f))
          )
         )
-      (set! (-> self state-time) (-> self clock frame-counter))
+      (set-time! (-> self state-time))
       (set! (-> *game-info* counter) (the float (the-as int sv-16)))
       (if (>= 1 (the-as int sv-16))
           (gui-control-method-12
@@ -1601,55 +1515,35 @@ This commonly includes things such as:
 
 (set-subtask-hook!
   *game-info*
-  115
-  5
-  (the-as (function object) (lambda :behavior task-manager
-                              ()
-                              (let ((a1-0 (new 'stack-no-clear 'event-message-block)))
-                                (set! (-> a1-0 from) (process->ppointer self))
-                                (set! (-> a1-0 num-params) 2)
-                                (set! (-> a1-0 message) 'attack-invinc)
-                                (set! (-> a1-0 param 0) (the-as uint #f))
-                                (let ((v1-3 (new 'static 'attack-info :mask (attack-info-mask mode id))))
-                                  (let* ((a0-1 *game-info*)
-                                         (a2-1 (+ (-> a0-1 attack-id) 1))
-                                         )
-                                    (set! (-> a0-1 attack-id) a2-1)
-                                    (set! (-> v1-3 id) a2-1)
-                                    )
-                                  (set! (-> v1-3 mode) 'big-explosion)
-                                  (set! (-> a1-0 param 1) (the-as uint v1-3))
-                                  )
-                                (send-event-function *target* a1-0)
-                                )
-                              (none)
-                              )
-          )
+  (game-task-node strip-grenade-explode)
+  TASK_MANAGER_FAIL_HOOK
+  (lambda :behavior task-manager
+    ()
+    (send-event *target* 'attack-invinc #f (static-attack-info ((id (new-attack-id)) (mode 'big-explosion))))
+    (none)
+    )
   )
 
 (deftype drill-plat (strip-hazard)
-  ((plat-sound ambient-sound  :offset-assert 252)
+  ((plat-sound  ambient-sound)
    )
-  :heap-base #x80
-  :method-count-assert 21
-  :size-assert         #x100
-  :flag-assert         #x1500800100
   )
 
 
 ;; WARN: Return type mismatch process-drawable vs drill-plat.
-(defmethod relocate drill-plat ((obj drill-plat) (arg0 int))
-  (if (nonzero? (-> obj plat-sound))
-      (&+! (-> obj plat-sound) arg0)
+(defmethod relocate ((this drill-plat) (offset int))
+  (if (nonzero? (-> this plat-sound))
+      (&+! (-> this plat-sound) offset)
       )
-  (the-as drill-plat ((method-of-type process-drawable relocate) obj arg0))
+  (the-as drill-plat ((method-of-type process-drawable relocate) this offset))
   )
 
-(defmethod deactivate drill-plat ((obj drill-plat))
-  (if (nonzero? (-> obj plat-sound))
-      (stop! (-> obj plat-sound))
+(defmethod deactivate ((this drill-plat))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (if (nonzero? (-> this plat-sound))
+      (stop! (-> this plat-sound))
       )
-  ((method-of-type process-drawable deactivate) obj)
+  ((method-of-type process-drawable deactivate) this)
   (none)
   )
 
@@ -1660,13 +1554,13 @@ This commonly includes things such as:
 
 (defstate idle (drill-plat)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (case event-type
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
       (('touch 'attack)
        #f
        )
       (else
-        (strip-handler proc arg1 event-type event)
+        (strip-handler proc argc message block)
         )
       )
     )
@@ -1677,7 +1571,6 @@ This commonly includes things such as:
           )
       )
     (rider-trans)
-    (none)
     )
   :code (behavior ()
     (until #f
@@ -1697,7 +1590,6 @@ This commonly includes things such as:
       (suspend)
       )
     #f
-    (none)
     )
   :post (behavior ()
     (let ((t9-0 (-> (method-of-type strip-hazard idle) post)))
@@ -1709,22 +1601,21 @@ This commonly includes things such as:
     (update! (-> self sound))
     (update-trans!
       (-> self plat-sound)
-      (vector<-cspace! (new 'stack-no-clear 'vector) (-> self node-list data 7))
+      (vector<-cspace! (new 'stack-no-clear 'vector) (joint-node drill-plat-lod0-jg plat))
       )
     (update! (-> self plat-sound))
-    (none)
     )
   )
 
 ;; WARN: Return type mismatch object vs none.
-(defmethod init-from-entity! drill-plat ((obj drill-plat) (arg0 entity-actor))
+(defmethod init-from-entity! ((this drill-plat) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
-  (let ((s4-0 (new 'process 'collide-shape-moving obj (collide-list-enum hit-by-player))))
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
+  (let ((s4-0 (new 'process 'collide-shape-moving this (collide-list-enum hit-by-player))))
     (set! (-> s4-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s4-0 reaction) cshape-reaction-default)
     (set! (-> s4-0 no-reaction)
@@ -1766,57 +1657,54 @@ This commonly includes things such as:
       (set! (-> s4-0 backup-collide-as) (-> v1-21 prim-core collide-as))
       (set! (-> s4-0 backup-collide-with) (-> v1-21 prim-core collide-with))
       )
-    (set! (-> obj root-override) s4-0)
+    (set! (-> this root) s4-0)
     )
-  (process-drawable-from-entity! obj arg0)
+  (process-drawable-from-entity! this arg0)
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-drill-plat" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
   (let ((t9-10 (method-of-type strip-hazard init-from-entity!)))
-    (t9-10 obj arg0)
+    (t9-10 this arg0)
     )
-  (logclear! (-> obj mask) (process-mask actor-pause))
+  (logclear! (-> this mask) (process-mask actor-pause))
   (let ((a3-5 (new 'stack-no-clear 'vector)))
-    (set! (-> a3-5 quad) (-> obj root-override trans quad))
-    (set! (-> a3-5 x) (+ 57344.0 (-> a3-5 x)))
-    (set! (-> obj sound) (new 'process 'ambient-sound (static-sound-spec "drill-plat-a" :fo-max 90) a3-5))
+    (set! (-> a3-5 quad) (-> this root trans quad))
+    (+! (-> a3-5 x) 57344.0)
+    (set! (-> this sound) (new 'process 'ambient-sound (static-sound-spec "drill-plat-a" :fo-max 90) a3-5))
     )
   (ja-post)
-  (set! (-> obj plat-sound) (new
-                              'process
-                              'ambient-sound
-                              (static-sound-spec "drill-plat-b" :fo-max 50)
-                              (vector<-cspace! (new 'stack-no-clear 'vector) (-> obj node-list data 7))
-                              )
+  (set! (-> this plat-sound) (new
+                               'process
+                               'ambient-sound
+                               (static-sound-spec "drill-plat-b" :fo-max 50)
+                               (vector<-cspace! (new 'stack-no-clear 'vector) (-> this node-list data 7))
+                               )
         )
-  (go (method-of-object obj idle))
+  (go (method-of-object this idle))
   (none)
   )
 
 (set-subtask-hook!
   *game-info*
-  45
-  3
-  (the-as
-    (function object)
-    (lambda :behavior task-manager
-      ()
-      (let ((gp-0 (new 'stack-no-clear 'task-arrow-params)))
-        (set! (-> gp-0 pos quad) (-> self info end-sphere quad))
-        (quaternion-identity! (-> gp-0 quat))
-        (set! (-> gp-0 flags) (task-arrow-flags))
-        (set! (-> gp-0 map-icon) (the-as uint 15))
-        (set! (-> self arrow) (process->handle (task-arrow-spawn gp-0 (the-as task-arrow self))))
-        )
-      (while (>= (vector-vector-distance (target-pos 0) (-> self info end-sphere)) (-> self info end-sphere r))
-        (suspend)
-        )
-      (send-event (handle->process (-> self arrow)) 'leave)
-      (sleep-code)
-      (none)
+  (game-task-node strip-rescue-battle)
+  TASK_MANAGER_CODE_HOOK
+  (lambda :behavior task-manager
+    ()
+    (let ((gp-0 (new 'stack-no-clear 'task-arrow-params)))
+      (set! (-> gp-0 pos quad) (-> self info end-sphere quad))
+      (quaternion-identity! (-> gp-0 quat))
+      (set! (-> gp-0 flags) (task-arrow-flags))
+      (set! (-> gp-0 map-icon) (the-as uint 15))
+      (set! (-> self arrow) (process->handle (task-arrow-spawn gp-0 self)))
       )
+    (while (>= (vector-vector-distance (target-pos 0) (-> self info end-sphere)) (-> self info end-sphere r))
+      (suspend)
+      )
+    (send-event (handle->process (-> self arrow)) 'leave)
+    (sleep-code)
+    (none)
     )
   )
 

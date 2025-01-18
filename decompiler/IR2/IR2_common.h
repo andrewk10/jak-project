@@ -8,7 +8,7 @@
 #include "decompiler/Function/Warnings.h"
 #include "decompiler/util/TP_Type.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 namespace decompiler {
 enum class AccessMode : u8 {
@@ -174,6 +174,9 @@ enum class FixedOperatorKind {
   SEND_EVENT,
   CPAD_PRESSED_P,
   CPAD_HOLD_P,
+  MOUSE_PRESSED_P,
+  MOUSE_HOLD_P,
+  FOCUS_TEST,
   INVALID
 };
 

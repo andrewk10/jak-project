@@ -21,44 +21,24 @@ across the screen. The resolution of the circle is defined by the number of "tur
 
 ;; DECOMP BEGINS
 
-;; Contains the base mesh of each possible distort sprite shape. Everything excluding aspx and aspy
-;; are uploaded to VU memory.
-;;
-;; See sprite-distorter-generate-tables.
 (deftype sprite-distorter-sine-tables (basic)
-  ((aspx   float                  :offset-assert   4)
-   (aspy   float                  :offset-assert   8)
-   (entry  vector     128 :inline :offset-assert  16)
-   (ientry qword      9 :inline   :offset-assert 2064)
-   (giftag gs-gif-tag :inline     :offset-assert 2208)
-   (color  qword      :inline     :offset-assert 2224)
+  ((aspx    float)
+   (aspy    float)
+   (entry   vector      128 :inline)
+   (ientry  qword       9 :inline)
+   (giftag  gs-gif-tag  :inline)
+   (color   qword       :inline)
    )
-  :method-count-assert 9
-  :size-assert         #x8c0
-  :flag-assert         #x9000008c0
   )
 
-(defmethod inspect sprite-distorter-sine-tables ((obj sprite-distorter-sine-tables))
-  (when (not obj)
-    (set! obj obj)
-    (goto cfg-4)
-    )
-  (format #t "[~8x] ~A~%" obj (-> obj type))
-  (format #t "~1Taspx: ~f~%" (-> obj aspx))
-  (format #t "~1Taspy: ~f~%" (-> obj aspy))
-  (format #t "~1Tentry[128] @ #x~X~%" (-> obj entry))
-  (format #t "~1Tientry[9] @ #x~X~%" (-> obj ientry))
-  (format #t "~1Tgiftag: #<qword @ #x~X>~%" (-> obj giftag))
-  (format #t "~1Tcolor: #<qword @ #x~X>~%" (-> obj color))
-  (label cfg-4)
-  obj
-  )
 
 (kmemopen global "sprite-distort-tables")
+
 (define *sprite-distorter-sine-tables* (new 'global 'sprite-distorter-sine-tables))
+
 (kmemclose)
 
-;; Called from update-math-camera. 
+;; Called from update-math-camera.
 ;; Whenever the camera's aspect ratio changes, recalculates the *sprite-distorter-sine-tables*.
 ;;
 ;; Every two vectors in 'entry' contain the position and texture coordinates for a vertex.
@@ -83,10 +63,11 @@ across the screen. The resolution of the circle is defined by the number of "tur
     (let ((entry-idx 0)
           (ientry-idx 0)
           (turns 3)
-          (cam-aspx (- (-> *math-camera* perspective data 0)))
-          (cam-aspy (- (-> *math-camera* perspective data 5)))
+          (cam-aspx (- (-> *math-camera* perspective vector 0 x)))
+          (cam-aspy (- (-> *math-camera* perspective vector 1 y)))
           )
-      (when (or (!= cam-aspx (-> tbls aspx)) (!= cam-aspy (-> tbls aspy)))
+      ;; og:preserve-this Fix intermittent crash on start up due to a race with the DMA
+      (when #t
         (set! (-> tbls aspx) cam-aspx)
         (set! (-> tbls aspy) cam-aspy)
         (while (< turns 12)
@@ -96,13 +77,7 @@ across the screen. The resolution of the circle is defined by the number of "tur
             (let ((rot (* 65536.0 (/ (the float turn) (the float turns)))))
               (set-vector! (-> tbls entry entry-idx) (* (sin rot) cam-aspx) (* (cos rot) cam-aspy) 0.0 0.0)
               (let ((s3-1 (+ entry-idx 1)))
-                (set-vector!
-                  (-> tbls entry s3-1)
-                  (* 0.001953125 cam-aspx (sin rot))
-                  (* 0.001953125 cam-aspy (cos rot))
-                  0.0
-                  0.0
-                  )
+                (set-vector! (-> tbls entry s3-1) (* (/ cam-aspx 512) (sin rot)) (* (/ cam-aspy 512) (cos rot)) 0.0 0.0)
                 (set! entry-idx (+ s3-1 1))
                 )
               )
@@ -111,7 +86,7 @@ across the screen. The resolution of the circle is defined by the number of "tur
           )
         (set-vector! (-> tbls entry entry-idx) 0.0 cam-aspy 0.0 0.0)
         (let ((v1-20 (+ entry-idx 1)))
-          (set-vector! (-> tbls entry v1-20) 0.0 (* 0.001953125 cam-aspy) 0.0 0.0)
+          (set-vector! (-> tbls entry v1-20) 0.0 (/ cam-aspy 512) 0.0 0.0)
           (+ v1-20 1)
           )
         )
@@ -151,65 +126,41 @@ across the screen. The resolution of the circle is defined by the number of "tur
   (none)
   )
 
-(define sprite-distort-vu1-block (new 'static 'vu-function :length 63 :qlength 32))
+(define sprite-distort-vu1-block (new 'static 'vu-function))
 
-;; Sets up GS registers, adds a reference to *sprite-distorter-sine-tables*, and loads the VU program.
 (defun sprite-init-distorter ((dma-buff dma-buffer))
-  (let* ((v1-0 dma-buff)
-         (a1-0 (the-as object (-> v1-0 base)))
-         )
-    (set! (-> (the-as dma-packet a1-0) dma) (new 'static 'dma-tag :qwc #x7 :id (dma-tag-id cnt)))
-    (set! (-> (the-as dma-packet a1-0) vif0) (new 'static 'vif-tag))
-    (set! (-> (the-as dma-packet a1-0) vif1) (new 'static 'vif-tag :imm #x7 :cmd (vif-cmd direct) :msk #x1))
-    (set! (-> v1-0 base) (&+ (the-as pointer a1-0) 16))
-    )
-  (let* ((v1-1 dma-buff)
-         (a1-2 (the-as object (-> v1-1 base)))
-         )
-    (set! (-> (the-as gs-gif-tag a1-2) tag) (new 'static 'gif-tag64 :nloop #x1 :eop #x1 :nreg #x6))
-    (set! (-> (the-as gs-gif-tag a1-2) regs) (new 'static 'gif-tag-regs
-                                               :regs0 (gif-reg-id a+d)
-                                               :regs1 (gif-reg-id a+d)
-                                               :regs2 (gif-reg-id a+d)
-                                               :regs3 (gif-reg-id a+d)
-                                               :regs4 (gif-reg-id a+d)
-                                               :regs5 (gif-reg-id a+d)
-                                               :regs6 (gif-reg-id a+d)
-                                               :regs7 (gif-reg-id a+d)
-                                               :regs8 (gif-reg-id a+d)
-                                               :regs9 (gif-reg-id a+d)
-                                               :regs10 (gif-reg-id a+d)
-                                               :regs11 (gif-reg-id a+d)
-                                               :regs12 (gif-reg-id a+d)
-                                               :regs13 (gif-reg-id a+d)
-                                               :regs14 (gif-reg-id a+d)
-                                               :regs15 (gif-reg-id a+d)
-                                               )
-          )
-    (set! (-> v1-1 base) (&+ (the-as pointer a1-2) 16))
-    )
-  (let* ((v1-2 dma-buff)
-         (a1-4 (-> v1-2 base))
-         )
-    (set! (-> (the-as (pointer gs-zbuf) a1-4) 0) (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24) :zmsk #x1))
-    (set! (-> (the-as (pointer gs-reg64) a1-4) 1) (gs-reg64 zbuf-1))
-    (set! (-> (the-as (pointer gs-tex0) a1-4) 2) (new 'static 'gs-tex0 :tbp0 #x3300 :tbw #x8 :tw #x9 :th #x9))
-    (set! (-> (the-as (pointer gs-reg64) a1-4) 3) (gs-reg64 tex0-1))
-    (set! (-> (the-as (pointer gs-tex1) a1-4) 4) (new 'static 'gs-tex1 :mmag #x1 :mmin #x1))
-    (set! (-> (the-as (pointer gs-reg64) a1-4) 5) (gs-reg64 tex1-1))
-    (set! (-> (the-as (pointer gs-miptbp) a1-4) 6) (new 'static 'gs-miptbp))
-    (set! (-> (the-as (pointer gs-reg64) a1-4) 7) (gs-reg64 miptbp1-1))
-    (set! (-> (the-as (pointer gs-clamp) a1-4) 8) (new 'static 'gs-clamp
-                                                    :wms (gs-tex-wrap-mode region-clamp)
-                                                    :wmt (gs-tex-wrap-mode region-clamp)
-                                                    :maxu #x1ff
-                                                    :maxv #x19f
-                                                    )
-          )
-    (set! (-> (the-as (pointer gs-reg64) a1-4) 9) (gs-reg64 clamp-1))
-    (set! (-> (the-as (pointer gs-alpha) a1-4) 10) (new 'static 'gs-alpha :b #x1 :d #x1))
-    (set! (-> (the-as (pointer gs-reg64) a1-4) 11) (gs-reg64 alpha-1))
-    (set! (-> v1-2 base) (&+ a1-4 96))
+  "Sets up GS registers, adds a reference to *sprite-distorter-sine-tables*, and loads the VU program."
+  (dma-buffer-add-gs-set dma-buff
+                         (zbuf-1 (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24) :zmsk #x1))
+                         (tex0-1 (new 'static 'gs-tex0 :tbp0 #x3300 :tbw #x8 :tw #x9 :th #x9))
+                         (tex1-1 (new 'static 'gs-tex1 :mmag #x1 :mmin #x1))
+                         (miptbp1-1 (new 'static 'gs-miptbp))
+                         (clamp-1 (new 'static 'gs-clamp
+                                    :wms (gs-tex-wrap-mode region-clamp)
+                                    :wmt (gs-tex-wrap-mode region-clamp)
+                                    :maxu #x1ff
+                                    :maxv #x19f
+                                    )
+                                  )
+                         (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1))
+                         )
+  ;; send current aspect used by the sine tables (PC only)
+  (#when PC_PORT
+    (let ((packet (the-as dma-packet (-> dma-buff base))))
+      (set! (-> packet dma) (new 'static 'dma-tag :id (dma-tag-id cnt) :qwc 1))
+      (set! (-> packet vif0) (new 'static 'vif-tag))
+      (set! (-> packet vif1) (new 'static 'vif-tag :cmd (vif-cmd pc-port)))
+      (&+! (-> dma-buff base) 16)
+      )
+    (let ((aspect-vec (the-as vector (-> dma-buff base))))
+      (set-vector! aspect-vec
+                   (-> *sprite-distorter-sine-tables* aspx)
+                   (-> *sprite-distorter-sine-tables* aspy)
+                   0.0
+                   0.0
+                   )
+      (&+! (-> dma-buff base) 16)
+      )
     )
   (let* ((v1-3 dma-buff)
          (a1-6 (the-as object (-> v1-3 base)))
@@ -284,17 +235,17 @@ across the screen. The resolution of the circle is defined by the number of "tur
                 (set! dma-color (&+ (the-as pointer dma-position) 32))
                 (cond
                   ((= (the-as int (-> sprite flag-rot-sy y)) 1)
-                   (.lvf vf3 (&-> *math-camera* sprite-2d vector 0 quad))
-                   (.lvf vf4 (&-> *math-camera* sprite-2d vector 1 quad))
-                   (.lvf vf5 (&-> *math-camera* sprite-2d vector 2 quad))
+                   (.lvf vf3 (&-> *math-camera* sprite-2d quad 0))
+                   (.lvf vf4 (&-> *math-camera* sprite-2d quad 1))
+                   (.lvf vf5 (&-> *math-camera* sprite-2d quad 2))
                    (.lvf vf6 (&-> *math-camera* sprite-2d trans quad))
                    (.lvf vf9 (&-> *math-camera* sprite-2d-hvdf quad))
                    (.mov v1-15 vf9)
                    )
                   (else
-                    (.lvf vf3 (&-> *math-camera* camera-temp vector 0 quad))
-                    (.lvf vf4 (&-> *math-camera* camera-temp vector 1 quad))
-                    (.lvf vf5 (&-> *math-camera* camera-temp vector 2 quad))
+                    (.lvf vf3 (&-> *math-camera* camera-temp quad 0))
+                    (.lvf vf4 (&-> *math-camera* camera-temp quad 1))
+                    (.lvf vf5 (&-> *math-camera* camera-temp quad 2))
                     (.lvf vf6 (&-> *math-camera* camera-temp trans quad))
                     (.lvf vf9 (&-> *math-camera* hvdf-off quad))
                     (.mov v1-21 vf9)
@@ -311,12 +262,12 @@ across the screen. The resolution of the circle is defined by the number of "tur
                 ;;(TODO.VCLIP vf10 vf10)
                 (b! (zero? (-> sprite flag-rot-sy x)) cfg-22 :delay (nop!))
                 (.wait.vf)
-                (.mul.vf vf1 vf1 Q :mask #b111)
-                (.mul.vf vf2 vf2 Q :mask #b111)
+                (.mul.vf.xyz vf1 vf1 Q)
+                (.mul.vf.xyz vf2 vf2 Q)
                 ;;(.cfc2.i clip-result Clipping)
                 (set! clip-result (vu-clip vf10 0)) ;; safe to just drop the higher bits.
                 (b! (logtest? clip-result 63) cfg-22 :delay (.add.vf vf1 vf1 vf9))
-                (.max.x.vf vf1 vf1 vf0 :mask #b1000)
+                (.max.x.vf.w vf1 vf1 vf0)
                 (.svf (&-> (the-as vector dma-position) quad) vf1)
                 (.svf (&-> (the-as vector dma-color) quad) vf2)
                 (set! (-> (the-as vector dma-position) w) 255.0)
@@ -329,7 +280,7 @@ across the screen. The resolution of the circle is defined by the number of "tur
                 (set! (-> sprite flag-rot-sy x) (the-as float #xb))
                 )
               (set! (-> (the-as (pointer int32) dma-st-flag) 3) (the-as int (-> sprite flag-rot-sy x)))
-              (let* ((f1-4 (- (-> *math-camera* perspective data 5)))
+              (let* ((f1-4 (- (-> *math-camera* perspective vector 1 y)))
                      (f2-2 (-> (the-as vector dma-st-flag) y))
                      (f4-0 (+ f2-2 (* (-> (the-as vector dma-color) x) f1-4)))
                      (f3-0 256.0)
@@ -475,3 +426,6 @@ across the screen. The resolution of the circle is defined by the number of "tur
     (none)
     )
   )
+
+;; og:preserve-this Fix intermittent crash on start up due to a race with the DMA
+(sprite-distorter-generate-tables)

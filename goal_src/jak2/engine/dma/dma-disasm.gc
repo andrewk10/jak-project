@@ -11,19 +11,17 @@ Debug tool to print out a DMA list.
 
 ;; DECOMP BEGINS
 
+;; this file is debug only
 (declare-file (debug))
 
 (deftype vif-disasm-element (structure)
-  ((mask    uint32      :offset-assert   0)
-   (tag     vif-cmd-32  :offset-assert   4)
-   (val     uint32      :offset-assert   8)
-   (print   uint32      :offset-assert  12)
-   (string1 string      :offset-assert  16)
-   (string2 string      :offset-assert  20)
+  ((mask     uint32)
+   (tag      vif-cmd-32)
+   (val      uint32)
+   (print    uint32)
+   (string1  string)
+   (string2  string)
    )
-  :method-count-assert 9
-  :size-assert         #x18
-  :flag-assert         #x900000018
   )
 
 
@@ -308,6 +306,7 @@ Debug tool to print out a DMA list.
     )
   )
 
+;; WARN: Return type mismatch object vs none.
 (defun disasm-dma-tag ((arg0 dma-tag) (arg1 symbol))
   (format arg1 "(dma-tag ")
   (let ((t9-1 format)
@@ -367,6 +366,7 @@ Debug tool to print out a DMA list.
 
 (define *dma-disasm* #t)
 
+;; WARN: Check prologue - tricky store of a0
 (defun disasm-dma-list ((arg0 dma-packet) (arg1 symbol) (arg2 symbol) (arg3 symbol) (arg4 int))
   (local-vars
     (sv-16 object)
@@ -403,7 +403,7 @@ Debug tool to print out a DMA list.
                 (a2-2 "dma-list tag pointer")
                 )
             (cond
-              ((not (t9-1 a0-2 (the-as type a1-2) (the-as symbol a2-2) #t gp-0))
+              ((not (t9-1 a0-2 (the-as type a1-2) a2-2 #t gp-0))
                (format gp-0 "ERROR: dma-list tag pointer invalid~%")
                (set! s0-0 'error)
                )
@@ -414,7 +414,7 @@ Debug tool to print out a DMA list.
                                                   (a1-4 #f)
                                                   )
                                               (set! a2-2 "dma-list data pointer")
-                                              (t9-3 a0-4 (the-as type a1-4) (the-as symbol a2-2) #t gp-0)
+                                              (t9-3 a0-4 (the-as type a1-4) a2-2 #t gp-0)
                                               )
                                )
                            )
@@ -580,6 +580,3 @@ Debug tool to print out a DMA list.
       )
     )
   )
-
-
-

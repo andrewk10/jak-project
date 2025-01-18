@@ -8,6 +8,7 @@
 #include "common/util/FileUtil.h"
 
 #include "decompiler/ObjectFile/LinkedObjectFile.h"
+#include "decompiler/level_extractor/extract_common.h"
 #include "decompiler/util/Error.h"
 
 namespace decompiler {
@@ -1018,16 +1019,16 @@ std::vector<TFragDraw> emulate_tfrag_execution(const level_tools::TFragment& fra
 
   //  lq.xyzw vf04, 5(vi14)      |  mulw.xyzw vf16, vf00, vf00
   // inputs.vf04_cam_mat_x = load_vector_data(vars.vi14 + 5);
-  Vector4f vf16_scaled_pos_0 = Vector4f(0, 0, 0, 1);
+  // Vector4f vf16_scaled_pos_0 = Vector4f(0, 0, 0, 1);
 
   //  lq.xyzw vf07, 6(vi14)      |  mulw.xyzw vf17, vf00, vf00
   // inputs.vf07_cam_mat_y = load_vector_data(vars.vi14 + 6);
-  Vector4f vf17_scaled_pos_1 = Vector4f(0, 0, 0, 1);
+  // Vector4f vf17_scaled_pos_1 = Vector4f(0, 0, 0, 1);
 
   //  ibne vi00, vi14, L136      |  mulw.xyzw vf18, vf00, vf00
-  Vector4f vf18_scaled_pos_2 = Vector4f(0, 0, 0, 1);
+  // Vector4f vf18_scaled_pos_2 = Vector4f(0, 0, 0, 1);
   //  lq.xyzw vf08, 7(vi14)      |  mulw.xyzw vf19, vf00, vf00
-  Vector4f vf19_scaled_pos_3 = Vector4f(0, 0, 0, 1);
+  // Vector4f vf19_scaled_pos_3 = Vector4f(0, 0, 0, 1);
   // inputs.vf08_cam_mat_z = load_vector_data(vars.vi14 + 7);
 
   ////////////////////////////////////////////////////////////////////////////////////////
@@ -1085,7 +1086,7 @@ std::vector<TFragDraw> emulate_tfrag_execution(const level_tools::TFragment& fra
   vf24_stq_0.w() = 0;  // set later.
 
   //  iaddiu vi11, vi00, 0x4000  |  nop
-  u16 vi11 = 0x4000;
+  [[maybe_unused]] u16 vi11 = 0x4000;
 
   //  iaddiu vi11, vi11, 0x4000  |  nop
   vi11 += 0x4000;
@@ -1677,9 +1678,7 @@ std::vector<TFragDraw> emulate_tfrag_execution(const level_tools::TFragment& fra
   }
 
 end:
-  int total_dvert = 0;
   for (auto& draw : all_draws) {
-    total_dvert += draw.verts.size();
     draw.tfrag_id = frag.id;
   }
 
@@ -1825,7 +1824,8 @@ u32 remap_texture(u32 original, const std::vector<level_tools::TextureRemap>& ma
 
 void process_draw_mode(std::vector<TFragDraw>& all_draws,
                        const std::vector<level_tools::TextureRemap>& map,
-                       tfrag3::TFragmentTreeKind tree_kind) {
+                       tfrag3::TFragmentTreeKind tree_kind,
+                       bool disable_atest_for_normal_tfrag) {
   // set up the draw mode based on the code in background.gc and tfrag-methods.gc
   DrawMode mode;
   mode.set_alpha_test(DrawMode::AlphaTest::GEQUAL);
@@ -1838,13 +1838,24 @@ void process_draw_mode(std::vector<TFragDraw>& all_draws,
   switch (tree_kind) {
     case tfrag3::TFragmentTreeKind::NORMAL:
     case tfrag3::TFragmentTreeKind::LOWRES:
-      mode.enable_at();                                  // :ate #x1
-      mode.set_alpha_test(DrawMode::AlphaTest::GEQUAL);  // :atst (gs-atest greater-equal)
-      mode.set_aref(0x26);                               // :aref #x26
-      mode.set_alpha_fail(GsTest::AlphaFail::KEEP);
-      mode.enable_zt();                            // :zte #x1
-      mode.set_depth_test(GsTest::ZTest::GEQUAL);  // :ztst (gs-ztest greater-equal))
-      mode.disable_ab();
+      if (disable_atest_for_normal_tfrag) {
+        mode.enable_at();                                  // :ate #x1
+        mode.set_alpha_test(DrawMode::AlphaTest::ALWAYS);  // :atst (gs-atest greater-equal)
+        mode.set_aref(0x0);                                // :aref #x26
+        mode.set_alpha_fail(GsTest::AlphaFail::KEEP);
+        mode.enable_zt();                            // :zte #x1
+        mode.set_depth_test(GsTest::ZTest::GEQUAL);  // :ztst (gs-ztest greater-equal))
+        mode.disable_ab();
+      } else {
+        mode.enable_at();                                  // :ate #x1
+        mode.set_alpha_test(DrawMode::AlphaTest::GEQUAL);  // :atst (gs-atest greater-equal)
+        mode.set_aref(0x26);                               // :aref #x26
+        mode.set_alpha_fail(GsTest::AlphaFail::KEEP);
+        mode.enable_zt();                            // :zte #x1
+        mode.set_depth_test(GsTest::ZTest::GEQUAL);  // :ztst (gs-ztest greater-equal))
+        mode.disable_ab();
+      }
+
       break;
     case tfrag3::TFragmentTreeKind::TRANS:
     case tfrag3::TFragmentTreeKind::LOWRES_TRANS:
@@ -1899,7 +1910,13 @@ void process_draw_mode(std::vector<TFragDraw>& all_draws,
           update_mode_from_test1(val, mode);
           break;
         case GsRegisterAddress::TEX0_1:
-          // ASSERT(val == 0); HACK jak 2 sets this.
+          ASSERT(val == 0 || val == 0x8'0000'0000);
+          if (val == 0x8'0000'0000) {
+            mode.set_decal(true);
+          } else {
+            mode.set_decal(false);
+          }
+          mode.set_tcc(false);
           break;
         case GsRegisterAddress::TEX1_1:
           ASSERT(val == 0x120);  // some flag
@@ -1976,7 +1993,7 @@ std::map<u32, std::vector<GroupedDraw>> make_draw_groups(std::vector<TFragDraw>&
     }
   }
 
-  int dc = 0;
+  [[maybe_unused]] int dc = 0;
   for (auto& group_list : result) {
     for (auto& group : group_list.second) {
       (void)group;
@@ -1987,6 +2004,79 @@ std::map<u32, std::vector<GroupedDraw>> make_draw_groups(std::vector<TFragDraw>&
   // lg::print("    grouped to get {} draw calls\n", dc);
 
   return result;
+}
+
+s32 find_or_add_texture_to_level(u32 combo_tex_id,
+                                 std::vector<tfrag3::Texture>& texture_pool,
+                                 const TextureDB& tdb,
+                                 const std::vector<std::pair<int, int>>& expected_missing_textures,
+                                 const std::string& level_name) {
+  // first, let's see if we have a texture for this.
+  s32 tfrag3_tex_id = INT32_MAX;
+  for (u32 i = 0; i < texture_pool.size(); i++) {
+    if (texture_pool[i].combo_id == combo_tex_id) {
+      tfrag3_tex_id = i;
+      break;
+    }
+  }
+
+  if (tfrag3_tex_id == INT32_MAX) {
+    // nope. we are a new texture.
+    auto tex_it = tdb.textures.find(combo_tex_id);
+    if (tex_it == tdb.textures.end()) {
+      int tpage = combo_tex_id >> 16;
+      int idx = combo_tex_id & 0xffff;
+      bool ok_to_miss =
+          std::find(expected_missing_textures.begin(), expected_missing_textures.end(),
+                    std::make_pair(tpage, idx)) != expected_missing_textures.end();
+      if (ok_to_miss) {
+        // we're missing a texture, just use the first one.
+        tex_it = tdb.textures.begin();
+        // some tfrags in jak 3 are missing textures, so we use some suitable
+        // replacements instead of the default eye texture
+        static std::map<std::string, std::string> per_level_tex_hacks = {
+            {"wasintro", "des-rock-01"},
+            {"intpfall", "common-black"},
+            {"powergd", "common-black"},
+        };
+        auto it = std::find_if(tdb.textures.begin(), tdb.textures.end(),
+                               [&](const std::pair<u32, TextureDB::TextureData> val) {
+                                 return val.second.name == per_level_tex_hacks[level_name];
+                               });
+        if (it != tdb.textures.end()) {
+          tex_it = it;
+        }
+      } else {
+        ASSERT_MSG(
+            false,
+            fmt::format("texture {} wasn't found. make sure it is loaded somehow. You may need "
+                        "to include "
+                        "ART.DGO or GAME.DGO in addition to the level DGOs for shared textures."
+                        "tpage is {}. id is {} (0x{:x}) for level {}",
+                        combo_tex_id, combo_tex_id >> 16, combo_tex_id & 0xffff,
+                        combo_tex_id & 0xffff, level_name));
+      }
+    }
+    tfrag3_tex_id = texture_pool.size();
+    texture_pool.emplace_back();
+    auto& new_tex = texture_pool.back();
+    new_tex.combo_id = combo_tex_id;
+    new_tex.w = tex_it->second.w;
+    new_tex.h = tex_it->second.h;
+    new_tex.debug_name = tex_it->second.name;
+    new_tex.debug_tpage_name = tdb.tpage_names.at(tex_it->second.page);
+    new_tex.data = tex_it->second.rgba_bytes;
+  }
+
+  // map animated textures to the animation slot.
+  const auto& level_tex = texture_pool.at(tfrag3_tex_id);
+  const auto& it = tdb.animated_tex_output_to_anim_slot.find(level_tex.debug_name);
+  if (it != tdb.animated_tex_output_to_anim_slot.end()) {
+    // lg::warn("tfrag3 animated texture: {}", level_tex.debug_name);
+    return -int(it->second) - 1;
+  }
+
+  return tfrag3_tex_id;
 }
 
 void make_tfrag3_data(std::map<u32, std::vector<GroupedDraw>>& draws,
@@ -2002,49 +2092,8 @@ void make_tfrag3_data(std::map<u32, std::vector<GroupedDraw>>& draws,
   // and link textures.
 
   for (auto& [combo_tex_id, draw_list] : draws) {
-    // first, let's see if we have a texture for this.
-    u32 tfrag3_tex_id = UINT32_MAX;
-    for (u32 i = 0; i < texture_pool.size(); i++) {
-      if (texture_pool[i].combo_id == combo_tex_id) {
-        tfrag3_tex_id = i;
-        break;
-      }
-    }
-
-    if (tfrag3_tex_id == UINT32_MAX) {
-      // nope. we are a new texture.
-      auto tex_it = tdb.textures.find(combo_tex_id);
-      if (tex_it == tdb.textures.end()) {
-        int tpage = combo_tex_id >> 16;
-        int idx = combo_tex_id & 0xffff;
-        bool ok_to_miss =
-            std::find(expected_missing_textures.begin(), expected_missing_textures.end(),
-                      std::make_pair(tpage, idx)) != expected_missing_textures.end();
-        if (ok_to_miss) {
-          // we're missing a texture, just use the first one.
-          tex_it = tdb.textures.begin();
-        } else {
-          ASSERT_MSG(
-              false,
-              fmt::format("texture {} wasn't found. make sure it is loaded somehow. You may need "
-                          "to include "
-                          "ART.DGO or GAME.DGO in addition to the level DGOs for shared textures."
-                          "tpage is {}. id is {} (0x{:x}) for level {}",
-                          combo_tex_id, combo_tex_id >> 16, combo_tex_id & 0xffff,
-                          combo_tex_id & 0xffff, level_name));
-        }
-      }
-      tfrag3_tex_id = texture_pool.size();
-      texture_pool.emplace_back();
-      auto& new_tex = texture_pool.back();
-      new_tex.combo_id = combo_tex_id;
-      new_tex.w = tex_it->second.w;
-      new_tex.h = tex_it->second.h;
-      new_tex.debug_name = tex_it->second.name;
-      new_tex.debug_tpage_name = tdb.tpage_names.at(tex_it->second.page);
-      new_tex.data = tex_it->second.rgba_bytes;
-    }
-
+    s32 tfrag3_tex_id = find_or_add_texture_to_level(combo_tex_id, texture_pool, tdb,
+                                                     expected_missing_textures, level_name);
     // now, add draws
     for (auto& draw : draw_list) {
       tfrag3::StripDraw tdraw;
@@ -2070,9 +2119,8 @@ void make_tfrag3_data(std::map<u32, std::vector<GroupedDraw>>& draws,
           vtx.z = vert.pre_cam_trans_pos.z();
           vtx.s = vert.stq.x();
           vtx.t = vert.stq.y();
-          vtx.q_unused = vert.stq.z();
-          // if this is true, we can remove a divide in the shader
-          ASSERT(vtx.q_unused == 1.f);
+          // because this is true, we can remove a divide in the shader
+          ASSERT(vert.stq.z() == 1.f);
           vtx.color_index = vert.rgba / 4;
           // ASSERT((vert.rgba >> 2) < 1024); spider cave has 2048?
           ASSERT((vert.rgba & 3) == 0);
@@ -2098,7 +2146,8 @@ void emulate_tfrags(int geom,
                     const TextureDB& tdb,
                     const std::vector<std::pair<int, int>>& expected_missing_textures,
                     bool dump_level,
-                    const std::string& level_name) {
+                    const std::string& level_name,
+                    bool disable_alpha_test_in_normal) {
   TFragExtractStats stats;
 
   std::vector<u8> vu_mem;
@@ -2114,7 +2163,7 @@ void emulate_tfrags(int geom,
     all_draws.insert(all_draws.end(), draws.begin(), draws.end());
   }
 
-  process_draw_mode(all_draws, map, tree_out.kind);
+  process_draw_mode(all_draws, map, tree_out.kind, disable_alpha_test_in_normal);
   auto groups = make_draw_groups(all_draws);
 
   make_tfrag3_data(groups, tree_out, vertices, level_out.textures, tdb, expected_missing_textures,
@@ -2130,12 +2179,7 @@ void emulate_tfrags(int geom,
 }
 
 void extract_time_of_day(const level_tools::DrawableTreeTfrag* tree, tfrag3::TfragTree& out) {
-  out.colors.resize(tree->time_of_day.height);
-  for (int i = 0; i < (int)tree->time_of_day.height; i++) {
-    for (int j = 0; j < 8; j++) {
-      memcpy(out.colors[i].rgba[j].data(), &tree->time_of_day.colors[i * 8 + j], 4);
-    }
-  }
+  out.colors = pack_colors(tree->time_of_day);
 }
 
 void merge_groups(std::vector<tfrag3::StripDraw::VisGroup>& grps) {
@@ -2161,7 +2205,8 @@ void extract_tfrag(const level_tools::DrawableTreeTfrag* tree,
                    const std::vector<std::pair<int, int>>& expected_missing_textures,
                    tfrag3::Level& out,
                    bool dump_level,
-                   const std::string& level_name) {
+                   const std::string& level_name,
+                   bool disable_atest_in_normal) {
   // go through 3 lods(?)
   for (int geom = 0; geom < GEOM_MAX; ++geom) {
     tfrag3::TfragTree this_tree;
@@ -2224,7 +2269,8 @@ void extract_tfrag(const level_tools::DrawableTreeTfrag* tree,
 
     std::vector<tfrag3::PreloadedVertex> vertices;
     emulate_tfrags(geom, as_tfrag_array->tfragments, debug_name, map, out, this_tree, vertices,
-                   tex_db, expected_missing_textures, dump_level, level_name);
+                   tex_db, expected_missing_textures, dump_level, level_name,
+                   disable_atest_in_normal);
     pack_tfrag_vertices(&this_tree.packed_vertices, vertices);
     extract_time_of_day(tree, this_tree);
 

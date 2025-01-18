@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "common/versions.h"
+#include "common/versions/versions.h"
 
 #include "game/kernel/common/fileio.h"
 #include "game/kernel/common/kmalloc.h"
@@ -96,12 +96,12 @@ char* MakeFileName(int type, const char* name, int new_string) {
     // GOAL object file, but containing data instead of code.
     // likely packed by a tool that isn't the GOAL compiler.
     // sprintf(buf, "%sfinal/%s.go", prefix, name);
-    sprintf(buf, "%sout/obj/%s.go", prefix, name);
+    sprintf(buf, "%sout/jak2/obj/%s.go", prefix, name);
   } else if (type == TX_PAGE_FILE_TYPE) {
     // Texture Page
     // part of level files, so it has a version number.
     // sprintf(buf, "%sdata/texture-page%d/%s.go", prefix, TX_PAGE_VERSION, name);
-    sprintf(buf, "%sout/obj/%s.go", prefix, name);
+    sprintf(buf, "%sout/jak2/obj/%s.go", prefix, name);
   } else if (type == JA_FILE_TYPE) {
     // Art JA (joint animation? no idea)
     // part of level files, so it has a version number
@@ -161,7 +161,7 @@ char* MakeFileName(int type, const char* name, int new_string) {
     // game CGO file (unused, all DGO/CGOs loaded through IOP)
     sprintf(buf, "game/dgo%d/%s.cgo", DGO_FILE_VERSION, name);
   } else if (type == CNT_FILE_TYPE) {
-    // game cnt file (continue point?)
+    // game cnt file. leftover from jak 1.
     sprintf(buf, "%sfinal/res%d/game-cnt.go", prefix, 1);
   } else if (type == RES_FILE_TYPE) {
     // RES go file?

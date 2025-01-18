@@ -141,15 +141,51 @@
          (cons (first lst) (filter pred (cdr lst))))
         (#t (filter pred (cdr lst)))))
 
+(desfun member (x a)
+  (if (null? a)
+      #f
+      (if (eq? (car a) x)
+          a
+          (member x (cdr a))
+          )
+      )
+	)
+
 (desfun assoc (x a)
   (if (null? a)
-      '()
+      #f
       (if (eq? (caar a) x)
           (car a)
           (assoc x (cdr a))
           )
       )
 	)
+
+(desfun assocn (x a)
+  (let ((i -1)
+        (ret -1)
+        (iter a))
+    (while (and (< ret 0) (not (null? iter)))
+      (inc! i)
+      (when (eq? (car iter) x)
+          (set! ret i))
+      (set! iter (cdr iter)))
+    ret)
+  )
+
+(desfun nth (n a)
+  (let ((i -1)
+        (ret #f)
+        (stop? #f)
+        (iter a))
+    (while (and (not stop?) (not (null? iter)))
+      (inc! i)
+      (when (eq? i n)
+          (set! ret (car iter))
+          (set! stop? #t))
+      (set! iter (cdr iter)))
+    ret)
+  )
 
 (desfun list (&rest items)
   (apply (lambda (x) x) items)
@@ -189,20 +225,22 @@
     )
   )
 
-(defsmacro let (bindings &rest body)
-  `((lambda ,(apply first bindings) ,@body)
-    ,@(apply second bindings)))
+;; These are now implemented in Interpreter.cpp for speed.
+;; But I leave these here because it was cool to implement them in GOOS itself.
+; (defsmacro let (bindings &rest body)
+;   `((lambda ,(apply first bindings) ,@body)
+;     ,@(apply second bindings)))
 
-(defsmacro let* (bindings &rest body)
-  (if (null? bindings)
-      `(begin ,@body)
-      `((lambda (,(caar bindings))
-	  (let* ,(cdr bindings) ,@body))
-	;;(begin ,@(cdar bindings))
-	,(car (cdar bindings))
-	)
-      )
-  )
+; (defsmacro let* (bindings &rest body)
+;   (if (null? bindings)
+;     `(begin ,@body)
+;     `((lambda (,(caar bindings))
+;      (let* ,(cdr bindings) ,@body))
+; 	;;(begin ,@(cdar bindings))
+; 	,(car (cdar bindings))
+; 	)
+;     )
+;   )
 
 (defsmacro dotimes (var &rest body)
   `(let (( ,(first var) 0))
@@ -412,6 +450,11 @@
     max-val)
   )
 
+(defgmacro enum-max (enum)
+  (enum-max enum))
+(defgmacro enum-length (enum)
+  (enum-length enum))
+
 
 ;; shortcut to quit GOOS
 (defsmacro e ()
@@ -428,7 +471,7 @@
 
 ;; *user* is defined when goos starts!
 (when *user*
-  (fmt #t "Loading user scripts for user: {}...\n" *user*)
+  ;; (fmt #t "Loading user scripts for user: {}...\n" *user*)
   ;; i'm not sure what naming scheme to use here. user/<name>/user.gs?
   ;; the GOAL one is loaded in Compiler.cpp
   (try-load-file (fmt #f "goal_src/user/{}/user.gs" *user*))
@@ -450,6 +493,11 @@
 ;; a map for art definitions used by art loading code.
 (define *art-info* (make-string-hash-table))
 
+;; a map for joint node names used by art loading code.
+(define *jg-info* (make-string-hash-table))
+
+;; a map for tpages used by texture macros.
+(define *tpage-info* (make-string-hash-table))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  build system      ;;
@@ -458,7 +506,10 @@
 (define GAME_TERRITORY_SCEA 0)
 (define GAME_TERRITORY_SCEE 1)
 (define GAME_TERRITORY_SCEI 2)
+(define GAME_TERRITORY_SCEK 3)
 
 (define *jak1-full-game* (if (user? dass) #t #f))
-(define *jak1-territory* GAME_TERRITORY_SCEA)
+(define *default-territory* GAME_TERRITORY_SCEA)
 
+;; whether to enable ps3 test levels for jak 2
+(define USE_PS3_LEVELS #f)

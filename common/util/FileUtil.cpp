@@ -16,12 +16,13 @@
 
 #include "common/common_types.h"
 #include "common/util/BinaryReader.h"
+#include "common/util/string_util.h"
 #include "common/util/unicode_util.h"
 
 // This disables the use of PCLMULQDQ which is probably ok, but let's just be safe and disable it
 // because nobody will care if png compression is 10% slower.
 #define FPNG_NO_SSE 1
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 #include "third-party/fpng/fpng.cpp"
 #include "third-party/fpng/fpng.h"
 #include "third-party/lzokay/lzokay.hpp"
@@ -37,6 +38,13 @@
 #include "common/log/log.h"
 #include "common/util/Assert.h"
 
+#ifdef __APPLE__
+#include <crt_externs.h>
+#include <limits.h>
+
+#include "mach-o/dyld.h"
+#endif
+
 namespace file_util {
 fs::path get_user_home_dir() {
 #ifdef _WIN32
@@ -48,6 +56,14 @@ fs::path get_user_home_dir() {
   return fs::path(home_dir);
 #endif
 }
+
+struct {
+  bool initialized = false;
+  fs::path path_to_data_folder;
+  fs::path user_config_dir_override = "";
+  // by default - if the config dir is overridden, we don't use the default save location
+  bool use_overridden_config_dir_for_saves = true;
+} g_file_path_info;
 
 fs::path get_user_config_dir() {
   fs::path config_base_path;
@@ -63,29 +79,62 @@ fs::path get_user_config_dir() {
   } else {
     config_base_path = fs::path(config_base_dir);
   }
+#elif __APPLE__
+  auto config_base_dir = get_env("HOME");
+  config_base_path = fs::path(config_base_dir) / "Library" / "Application Support";
 #endif
   return config_base_path / "OpenGOAL";
 }
 
 fs::path get_user_settings_dir(GameVersion game_version) {
   auto game_version_name = game_version_names[game_version];
-  return get_user_config_dir() / game_version_name / "settings";
+  auto config_dir = get_user_config_dir();
+  if (!g_file_path_info.user_config_dir_override.empty()) {
+    config_dir = g_file_path_info.user_config_dir_override / "OpenGOAL";
+  }
+  return config_dir / game_version_name / "settings";
 }
 
 fs::path get_user_memcard_dir(GameVersion game_version) {
   auto game_version_name = game_version_names[game_version];
-  return get_user_config_dir() / game_version_name / "saves";
+  auto config_dir = get_user_config_dir();
+  if (!g_file_path_info.user_config_dir_override.empty() &&
+      g_file_path_info.use_overridden_config_dir_for_saves) {
+    config_dir = g_file_path_info.user_config_dir_override / "OpenGOAL";
+  }
+  return config_dir / game_version_name / "saves";
+}
+
+fs::path get_user_screenshots_dir(GameVersion game_version) {
+  auto game_version_name = game_version_names[game_version];
+  auto config_dir = get_user_config_dir();
+  if (!g_file_path_info.user_config_dir_override.empty()) {
+    config_dir = g_file_path_info.user_config_dir_override / "OpenGOAL";
+  }
+  return config_dir / game_version_name / "screenshots";
 }
 
 fs::path get_user_misc_dir(GameVersion game_version) {
   auto game_version_name = game_version_names[game_version];
-  return get_user_config_dir() / game_version_name / "misc";
+  auto config_dir = get_user_config_dir();
+  if (!g_file_path_info.user_config_dir_override.empty()) {
+    config_dir = g_file_path_info.user_config_dir_override / "OpenGOAL";
+  }
+  return config_dir / game_version_name / "misc";
 }
 
-struct {
-  bool initialized = false;
-  fs::path path_to_data;
-} gFilePathInfo;
+fs::path get_user_features_dir(GameVersion game_version) {
+  auto game_version_name = game_version_names[game_version];
+  auto config_dir = get_user_config_dir();
+  if (!g_file_path_info.user_config_dir_override.empty()) {
+    config_dir = g_file_path_info.user_config_dir_override / "OpenGOAL";
+  }
+  auto path = config_dir / game_version_name / "features";
+  file_util::create_dir_if_needed(path);
+  return path;
+}
+
+fs::path g_iso_data_directory = "";
 
 /*!
  * Get the path to the current executable.
@@ -100,35 +149,47 @@ std::string get_current_executable_path() {
     return file_path.substr(4);
   }
   return file_path;
-#else
-  // do Linux stuff
+#elif __linux
   char buffer[FILENAME_MAX + 1];
   auto len = readlink("/proc/self/exe", buffer,
                       FILENAME_MAX);  // /proc/self acts like a "virtual folder" containing
   // information about the current process
   buffer[len] = '\0';
   return std::string(buffer);
+#elif __APPLE__
+  char buffer[PATH_MAX];
+  uint32_t bufsize = sizeof(buffer);
+  if (_NSGetExecutablePath(buffer, &bufsize) != 0) {
+    lg::warn("Could not get executable path, trying with _NSGetArgv()[0] instead.");
+    auto argv = *_NSGetArgv();
+    return std::string(argv[0]);
+  }
+  return std::string(buffer);
 #endif
+}
+
+std::optional<std::string> try_get_project_path_from_path(const std::string& path) {
+  std::string::size_type pos =
+      std::string(path).rfind("jak-project");  // Strip file path down to /jak-project/ directory
+  if (pos == std::string::npos) {
+    return {};
+  }
+  return std::string(path).substr(
+      0, pos + 11);  // + 12 to include "/jak-project" in the returned filepath
 }
 
 /*!
  * See if the current executable is somewhere in jak-project/. If so, return the path to jak-project
  */
 std::optional<std::string> try_get_jak_project_path() {
-  std::string my_path = get_current_executable_path();
-
-  std::string::size_type pos =
-      std::string(my_path).rfind("jak-project");  // Strip file path down to /jak-project/ directory
-  if (pos == std::string::npos) {
-    return {};
-  }
-
-  return std::make_optional(std::string(my_path).substr(
-      0, pos + 11));  // + 12 to include "/jak-project" in the returned filepath
+  return try_get_project_path_from_path(get_current_executable_path());
 }
 
-std::optional<fs::path> try_get_data_dir() {
+std::optional<fs::path> try_get_data_dir(bool skip_logs) {
   fs::path my_path = get_current_executable_path();
+  if (!skip_logs) {
+    lg::debug("Current executable directory - {}", my_path.string());
+  }
   auto data_dir = my_path.parent_path() / "data";
   if (fs::exists(data_dir) && fs::is_directory(data_dir)) {
     return std::make_optional(data_dir);
@@ -137,31 +198,38 @@ std::optional<fs::path> try_get_data_dir() {
   }
 }
 
-bool setup_project_path(std::optional<fs::path> project_path_override) {
-  if (gFilePathInfo.initialized) {
+bool setup_project_path(std::optional<fs::path> project_path_override, bool skip_logs) {
+  if (g_file_path_info.initialized) {
     return true;
   }
 
   if (project_path_override) {
-    gFilePathInfo.path_to_data = *project_path_override;
-    gFilePathInfo.initialized = true;
-    lg::info("Using explicitly set project path: {}", project_path_override->string());
+    g_file_path_info.path_to_data_folder = fs::absolute(project_path_override.value());
+    g_file_path_info.initialized = true;
+    if (!skip_logs) {
+      lg::debug("Using explicitly set project path: {}",
+                g_file_path_info.path_to_data_folder.string());
+    }
     return true;
   }
 
-  auto data_path = try_get_data_dir();
+  auto data_path = try_get_data_dir(skip_logs);
   if (data_path) {
-    gFilePathInfo.path_to_data = *data_path;
-    gFilePathInfo.initialized = true;
-    lg::info("Using data path: {}", data_path->string());
+    g_file_path_info.path_to_data_folder = *data_path;
+    g_file_path_info.initialized = true;
+    if (!skip_logs) {
+      lg::debug("Using data path: {}", data_path->string());
+    }
     return true;
   }
 
   auto development_repo_path = try_get_jak_project_path();
   if (development_repo_path) {
-    gFilePathInfo.path_to_data = *development_repo_path;
-    gFilePathInfo.initialized = true;
-    lg::info("Using development repo path: {}", *development_repo_path);
+    g_file_path_info.path_to_data_folder = *development_repo_path;
+    g_file_path_info.initialized = true;
+    if (!skip_logs) {
+      lg::debug("Using development repo path: {}", *development_repo_path);
+    }
     return true;
   }
 
@@ -169,9 +237,37 @@ bool setup_project_path(std::optional<fs::path> project_path_override) {
   return false;
 }
 
+void override_user_config_dir(fs::path user_config_dir_override,
+                              bool use_overridden_config_dir_for_saves) {
+  g_file_path_info.user_config_dir_override = user_config_dir_override;
+  g_file_path_info.use_overridden_config_dir_for_saves = use_overridden_config_dir_for_saves;
+}
+
 fs::path get_jak_project_dir() {
-  ASSERT(gFilePathInfo.initialized);
-  return gFilePathInfo.path_to_data;
+  ASSERT(g_file_path_info.initialized);
+  return g_file_path_info.path_to_data_folder;
+}
+
+fs::path get_iso_dir_for_game(GameVersion game_version) {
+  if (!g_iso_data_directory.empty()) {
+    return g_iso_data_directory;
+  }
+  // Find the location based on the game version
+  std::string expected_subdir = "jak1";
+  if (game_version == GameVersion::Jak2) {
+    expected_subdir = "jak2";
+  } else if (game_version == GameVersion::Jak3) {
+    expected_subdir = "jak3";
+  }
+  const auto temp_dir = get_jak_project_dir() / "iso_data" / expected_subdir;
+  if (fs::exists(temp_dir)) {
+    g_iso_data_directory = temp_dir;
+  }
+  return g_iso_data_directory;
+}
+
+void set_iso_data_dir(const fs::path& directory) {
+  g_iso_data_directory = directory;
 }
 
 std::string get_file_path(const std::vector<std::string>& input) {
@@ -199,10 +295,12 @@ bool create_dir_if_needed(const fs::path& path) {
   return false;
 }
 
+// TODO - explodes if the file path is invalid
 bool create_dir_if_needed_for_file(const std::string& path) {
   return create_dir_if_needed_for_file(fs::path(path));
 }
 
+// TODO - explodes if the file path is invalid
 bool create_dir_if_needed_for_file(const fs::path& path) {
   return fs::create_directories(path.parent_path());
 }
@@ -358,7 +456,7 @@ std::string split_path_at(const fs::path& path, const std::vector<std::string>& 
     split_str += folder + "/";
 #endif
   }
-  const auto& path_str = path.u8string();
+  const auto& path_str = path.string();
   return path_str.substr(path_str.find(split_str) + split_str.length());
 }
 
@@ -372,6 +470,19 @@ std::string convert_to_unix_path_separators(const std::string& path) {
 #endif
 }
 
+/*!
+ * Convert an animation name to ISO name.
+ * The animation name is a bunch of dash separated words.
+ * The resulting ISO name has the same first two chars as the animation name, and one char from each
+ * remaining word. Once there are no more words but remaining chars in the ISO name, the ith extra
+ * char is the i+1 th char of the last word. A word ending in a number (or just a number) is turned
+ * into the number. The word "resolution" becomes z. The word "accept" becomes y. The word "reject"
+ * becomes n. Other words become the first char of the word. The result is uppercased and the file
+ * extension is STR Examples (animation name and disc file name, not ISO name):
+ *  green-sagecage-outro-beat-boss-enough-cells -> GRSOBBEC.STR
+ *  swamp-tetherrock-swamprockexplode-4 -> SWTS4.STR
+ *  minershort-resolution-1-orbs -> MIZ1ORBS.STR
+ */
 void ISONameFromAnimationName(char* dst, const char* src) {
   // The Animation Name is a bunch of words separated by dashes
 
@@ -408,11 +519,16 @@ void ISONameFromAnimationName(char* dst, const char* src) {
 
         // some special case words map to special letters (likely to avoid animation name conflicts)
         if (next_ptr - src_ptr == 10 && !memcmp(src_ptr, "resolution", 10)) {
+          // NOTE : jak 2 also allows "res" here but that doesn't work properly.
           char_to_add = 'z';
         } else if (next_ptr - src_ptr == 6 && !memcmp(src_ptr, "accept", 6)) {
           char_to_add = 'y';
         } else if (next_ptr - src_ptr == 6 && !memcmp(src_ptr, "reject", 6)) {
           char_to_add = 'n';
+        } else if (next_ptr - src_ptr == 5 && !memcmp(src_ptr, "keira", 5)) {
+          // NOTE : this was added in jak 2. it's safe to use in jak 1 since she was referred to as
+          // "assistant" there
+          char_to_add = 'i';
         } else {
           // not a special case, just take the first letter.
           char_to_add = *src_ptr;
@@ -451,6 +567,15 @@ void ISONameFromAnimationName(char* dst, const char* src) {
   strcpy(dst + 8, "STR");
 }
 
+/*!
+ * Convert file name to "ISO Name"
+ * ISO names are upper case and 12 bytes long.
+ * xxxxxxxxyyy0
+ *
+ * x - uppercase letter of file name, or space
+ * y - uppercase letter of file extension, or space
+ * 0 - null terminator (\0, not the character zero)
+ */
 void MakeISOName(char* dst, const char* src) {
   int i = 0;
   const char* src_ptr = src;
@@ -572,8 +697,23 @@ FILE* open_file(const fs::path& path, const std::string& mode) {
 #endif
 }
 
+std::vector<fs::path> find_files_in_dir(const fs::path& dir, const std::regex& pattern) {
+  std::vector<fs::path> files = {};
+  for (auto& p : fs::directory_iterator(dir)) {
+    if (p.is_regular_file()) {
+      if (std::regex_match(p.path().filename().string(), pattern)) {
+        files.push_back(p.path());
+      }
+    }
+  }
+  return files;
+}
+
 std::vector<fs::path> find_files_recursively(const fs::path& base_dir, const std::regex& pattern) {
   std::vector<fs::path> files = {};
+  if (!fs::exists(base_dir)) {
+    return files;
+  }
   for (auto& p : fs::recursive_directory_iterator(base_dir)) {
     if (p.is_regular_file()) {
       if (std::regex_match(p.path().filename().string(), pattern)) {
@@ -594,6 +734,26 @@ std::vector<fs::path> find_directories_in_dir(const fs::path& base_dir) {
   return dirs;
 }
 
+std::vector<fs::path> sort_filepaths(const std::vector<fs::path>& paths, const bool aescending) {
+  std::vector<std::string> paths_as_strings = {};
+  for (const auto& path : paths) {
+    paths_as_strings.push_back(path.string());
+  }
+  std::sort(paths_as_strings.begin(), paths_as_strings.end(),
+            [aescending](const std::string& a, const std::string& b) {
+              if (aescending) {
+                return a < b;
+              } else {
+                return a > b;
+              }
+            });
+  std::vector<fs::path> sorted_paths = {};
+  for (const auto& path : paths_as_strings) {
+    sorted_paths.push_back(fs::path(path));
+  }
+  return sorted_paths;
+}
+
 void copy_file(const fs::path& src, const fs::path& dst) {
   // Check that the src path exists
   if (!fs::exists(src)) {
@@ -605,6 +765,64 @@ void copy_file(const fs::path& src, const fs::path& dst) {
         "Cannot copy '{}', couldn't make directory to copy into '{}'", src.string(), dst.string()));
   }
   fs::copy_file(src, dst, fs::copy_options::overwrite_existing);
+}
+
+std::string make_screenshot_filepath(const GameVersion game_version, const std::string& name) {
+  std::string file_name;
+  if (name.empty()) {
+    file_name = fmt::format("{}.png", str_util::current_local_timestamp_no_colons());
+  } else {
+    file_name = fmt::format("{}.png", name);
+  }
+  const auto file_path = get_user_screenshots_dir(game_version) / file_name;
+  file_util::create_dir_if_needed_for_file(file_path);
+  return file_path.string();
+}
+
+std::string get_majority_file_line_endings(const std::string& file_contents) {
+  size_t lf_count = 0;
+  size_t crlf_count = 0;
+
+  for (size_t i = 0; i < file_contents.size(); ++i) {
+    if (file_contents[i] == '\n') {
+      if (i > 0 && file_contents[i - 1] == '\r') {
+        crlf_count++;
+      } else {
+        lf_count++;
+      }
+    }
+  }
+
+  if (crlf_count > lf_count) {
+    return "\r\n";
+  }
+  return "\n";
+}
+
+std::pair<int, std::string> get_majority_file_line_endings_and_count(
+    const std::string& file_contents) {
+  size_t lf_count = 0;
+  size_t crlf_count = 0;
+
+  for (size_t i = 0; i < file_contents.size(); ++i) {
+    if (file_contents[i] == '\n') {
+      if (i > 0 && file_contents[i - 1] == '\r') {
+        crlf_count++;
+      } else {
+        lf_count++;
+      }
+    }
+  }
+
+  if (crlf_count > lf_count) {
+    return {lf_count + crlf_count, "\r\n"};
+  }
+  return {lf_count + crlf_count, "\n"};
+}
+
+bool is_dir_in_dir(const fs::path& parent, const fs::path& child) {
+  // Check if the parent path is a prefix of the child path
+  return child.has_parent_path() && child.parent_path().lexically_relative(parent) == fs::path(".");
 }
 
 }  // namespace file_util

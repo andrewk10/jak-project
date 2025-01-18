@@ -22,16 +22,13 @@
 (define *camera-layout-blink* #f)
 
 (deftype cam-layout-bank (basic)
-  ((spline-t    float  :offset-assert   4)
-   (spline-step float  :offset-assert   8)
-   (intro-t     float  :offset-assert  12)
-   (intro-step  float  :offset-assert  16)
-   (debug-t     float  :offset-assert  20)
-   (debug-step  float  :offset-assert  24)
+  ((spline-t     float)
+   (spline-step  float)
+   (intro-t      float)
+   (intro-step   float)
+   (debug-t      float)
+   (debug-step   float)
    )
-  :method-count-assert 9
-  :size-assert         #x1c
-  :flag-assert         #x90000001c
   )
 
 
@@ -49,74 +46,56 @@
 
 (deftype clm-basic (basic)
   ()
-  :method-count-assert 9
-  :size-assert         #x4
-  :flag-assert         #x900000004
   )
 
 
 (deftype clm-item-action (structure)
-  ((button       uint64  :offset-assert   0)
-   (options      uint64  :offset-assert   8)
-   (func         symbol  :offset-assert  16)
-   (parm0        int32   :offset         20)
-   (parm0-symbol symbol  :offset         20)
-   (parm0-basic  basic   :offset         20)
-   (parm1        symbol  :offset         24)
-   (parm1-basic  basic   :offset         24)
+  ((button        uint64)
+   (options       uint64)
+   (func          symbol)
+   (parm0         int32   :offset  20)
+   (parm0-symbol  symbol  :overlay-at parm0)
+   (parm0-basic   basic   :overlay-at parm0-symbol)
+   (parm1         symbol  :offset  24)
+   (parm1-basic   basic   :overlay-at parm1)
    )
-  :method-count-assert 9
-  :size-assert         #x1c
-  :flag-assert         #x90000001c
   )
 
 
 (deftype clm-item (clm-basic)
-  ((description   string                  :offset-assert   4)
-   (button-symbol symbol                  :offset-assert   8)
-   (action        clm-item-action :inline :offset-assert  16)
+  ((description    string)
+   (button-symbol  symbol)
+   (action         clm-item-action  :inline)
    )
-  :method-count-assert 9
-  :size-assert         #x2c
-  :flag-assert         #x90000002c
   )
 
 
 (deftype clm-list-item (basic)
-  ((description      string                   :offset-assert   4)
-   (track-val        symbol                   :offset-assert   8)
-   (val-func         symbol                   :offset-assert  12)
-   (val-parm0        int32                    :offset         16)
-   (val-parm0-symbol symbol                   :offset         16)
-   (val-parm0-basic  basic                    :offset         16)
-   (val-parm1        symbol                   :offset         20)
-   (val-parm1-basic  basic                    :offset         20)
-   (actions          (array clm-item-action)  :offset-assert  24)
+  ((description       string)
+   (track-val         symbol)
+   (val-func          symbol)
+   (val-parm0         int32   :offset  16)
+   (val-parm0-symbol  symbol  :overlay-at val-parm0)
+   (val-parm0-basic   basic   :overlay-at val-parm0-symbol)
+   (val-parm1         symbol  :offset  20)
+   (val-parm1-basic   basic   :overlay-at val-parm1)
+   (actions           (array clm-item-action))
    )
-  :method-count-assert 9
-  :size-assert         #x1c
-  :flag-assert         #x90000001c
   )
 
 
 (deftype clm-list (clm-basic)
-  ((tracker       symbol                 :offset-assert   4)
-   (cur-list-item int32                  :offset-assert   8)
-   (items         (array clm-list-item)  :offset-assert  12)
+  ((tracker        symbol)
+   (cur-list-item  int32)
+   (items          (array clm-list-item))
    )
-  :method-count-assert 9
-  :size-assert         #x10
-  :flag-assert         #x900000010
   )
 
 
 (deftype clm (basic)
-  ((title string             :offset-assert   4)
-   (items (array clm-basic)  :offset-assert   8)
+  ((title  string)
+   (items  (array clm-basic))
    )
-  :method-count-assert 9
-  :size-assert         #xc
-  :flag-assert         #x90000000c
   )
 
 
@@ -129,11 +108,8 @@
 (define *volume-normal* (new 'debug 'vector-array 600))
 
 (deftype volume-descriptor-array (inline-array-class)
-  ((data plane-volume :inline :dynamic :offset  16)
+  ((data  plane-volume  :inline :dynamic :offset  16)
    )
-  :method-count-assert 9
-  :size-assert         #x10
-  :flag-assert         #x900000010
   )
 
 
@@ -144,32 +120,27 @@
 (define *volume-descriptor* (the-as vol-control (new 'debug 'volume-descriptor-array 100)))
 
 (deftype cam-layout (process)
-  ((cam-entity      entity-camera  :offset-assert 128)
-   (num-entities    int32          :offset-assert 132)
-   (cur-entity      int32          :offset-assert 136)
-   (num-volumes     int32          :offset-assert 140)
-   (cur-volume      int32          :offset-assert 144)
-   (first-pvol      int32          :offset-assert 148)
-   (first-cutoutvol int32          :offset-assert 152)
-   (res-key         float          :offset-assert 156)
+  ((cam-entity       entity-camera)
+   (num-entities     int32)
+   (cur-entity       int32)
+   (num-volumes      int32)
+   (cur-volume       int32)
+   (first-pvol       int32)
+   (first-cutoutvol  int32)
+   (res-key          float)
    )
   :heap-base #x200
-  :method-count-assert 14
-  :size-assert         #xa0
-  :flag-assert         #xe020000a0
   (:states
     cam-layout-active
     )
   )
 
 
-;; WARN: Failed store: (s.w! (+ v1-6 8) 0) at op 22
-;; WARN: Failed store: (s.w! (+ v1-6 12) 0) at op 23
 (defun cam-layout-print ((arg0 int) (arg1 int) (arg2 string))
   (with-dma-buffer-add-bucket ((s5-0 (-> *display* frames (-> *display* on-screen) debug-buf))
                                (bucket-id debug2)
                                )
-    (draw-string-xy arg2 s5-0 arg0 arg1 (font-color #dadada) (font-flags shadow kerning))
+    (draw-string-xy arg2 s5-0 arg0 arg1 (font-color white) (font-flags shadow kerning))
     )
   )
 
@@ -366,7 +337,7 @@
     (cond
       ((and (= gp-0 (-> self cur-volume))
             (= *camera-layout-blink* 'volume)
-            (zero? (logand (-> *display* real-frame-clock integral-frame-counter) 8))
+            (not (logtest? (-> *display* real-frame-clock integral-frame-counter) 8))
             )
        )
       (else
@@ -436,16 +407,13 @@
   )
 
 (deftype interp-test-info (structure)
-  ((from   vector   :inline :offset-assert   0)
-   (to     vector   :inline :offset-assert  16)
-   (origin vector   :inline :offset-assert  32)
-   (color  vector4w         :offset-assert  48)
-   (axis   vector           :offset-assert  52)
-   (disp   string           :offset-assert  56)
+  ((from    vector  :inline)
+   (to      vector  :inline)
+   (origin  vector  :inline)
+   (color   vector4w)
+   (axis    vector)
+   (disp    string)
    )
-  :method-count-assert 9
-  :size-assert         #x3c
-  :flag-assert         #x90000003c
   )
 
 
@@ -756,7 +724,7 @@
   "Displays the message `button test`"
   (cam-layout-print 16 *camera-layout-message-ypos* "button test")
   (set! *camera-layout-message-ypos* (+ *camera-layout-message-ypos* 14))
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #f
   )
 
@@ -764,7 +732,7 @@
   "Displays the message `button not available`"
   (cam-layout-print 16 *camera-layout-message-ypos* "button not applicable")
   (set! *camera-layout-message-ypos* (+ *camera-layout-message-ypos* 14))
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #t
   )
 
@@ -772,7 +740,7 @@
   "Displays the message `button not implemented yet`"
   (cam-layout-print 16 *camera-layout-message-ypos* "button not implemented yet")
   (set! *camera-layout-message-ypos* (+ *camera-layout-message-ypos* 14))
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #t
   )
 
@@ -796,14 +764,14 @@
       (when (logtest? (-> *camera* settings master-options) (cam-master-options READ_BUTTONS))
         (if (cpad-hold? arg2 r1)
             (set! (-> arg1 y)
-                  (+ 0.5 (analog-input (the-as int (-> *cpad-list* cpads arg2 abutton 9)) 0.0 32.0 230.0 0.5) (-> arg1 y))
+                  (+ 0.5 (analog-input (the-as int (-> *cpad-list* cpads arg2 abutton (abutton-idx r1))) 0.0 32.0 230.0 0.5) (-> arg1 y)) ;; og:preserve-this abutton indexing
                   )
             )
         )
       (when (logtest? (-> *camera* settings master-options) (cam-master-options READ_BUTTONS))
         (if (cpad-hold? arg2 l1)
             (set! (-> arg1 y)
-                  (- (-> arg1 y) (+ 0.5 (analog-input (the-as int (-> *cpad-list* cpads arg2 abutton 8)) 0.0 32.0 230.0 0.5)))
+                  (- (-> arg1 y) (+ 0.5 (analog-input (the-as int (-> *cpad-list* cpads arg2 abutton (abutton-idx l1))) 0.0 32.0 230.0 0.5))) ;; og:preserve-this abutton indexing
                   )
             )
         )
@@ -926,7 +894,7 @@
         )
       )
     )
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #t
   )
 
@@ -963,7 +931,7 @@
       )
     )
   (clmf-next-volume a0-1)
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #t
   )
 
@@ -1067,14 +1035,14 @@
   (set! (-> *camera-other-root* quad) (-> *camera-other-trans* quad))
   (cam-slave-get-rot (the-as entity-actor (-> self cam-entity)) *camera-other-matrix*)
   (set! *camera-look-through-other* 10)
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #f
   )
 
 (defun fov->maya ((arg0 float))
   (if (= arg0 0.0)
       0.0
-      (/ 12.700255 (tan (* 0.5 arg0)))
+      (/ 12.700255 (tan (/ arg0 2)))
       )
   )
 
@@ -2021,13 +1989,10 @@
   )
 
 (deftype clmf-cam-flag-toggle-info (structure)
-  ((key       float  :offset-assert   0)
-   (force-on  int32  :offset-assert   4)
-   (force-off int32  :offset-assert   8)
+  ((key        float)
+   (force-on   int32)
+   (force-off  int32)
    )
-  :method-count-assert 9
-  :size-assert         #xc
-  :flag-assert         #x90000000c
   )
 
 
@@ -2248,7 +2213,7 @@
         )
       )
     )
-  (set-setting! 'master-options 'set 0 32)
+  (set-setting! 'master-options 'set 0.0 32)
   #t
   )
 
@@ -3095,12 +3060,12 @@
        )
       ((and (not (logtest? (-> arg0 options) 28))
             (logtest? (-> arg0 options) 1)
-            (zero? (logand (-> *cpad-list* cpads 0 button0-rel 0) (-> arg0 button)))
+            (not (logtest? (-> *cpad-list* cpads 0 button0-rel 0) (-> arg0 button)))
             )
        #f
        )
       ((and (not (logtest? (-> arg0 options) 29))
-            (zero? (logand (-> *cpad-list* cpads 0 button0-abs 0) (-> arg0 button)))
+            (not (logtest? (-> *cpad-list* cpads 0 button0-abs 0) (-> arg0 button)))
             )
        #f
        )
@@ -3149,7 +3114,7 @@
       )
   (let ((s5-0 30))
     (let ((s4-0 (cam-state-from-entity (-> self cam-entity))))
-      (set-setting! 'master-options 'clear 0 32)
+      (set-setting! 'master-options 'clear 0.0 32)
       (let ((s3-0 (-> self cam-entity)))
         (clear *temp-string*)
         (if s3-0
@@ -3290,7 +3255,6 @@
       (suspend)
       )
     #f
-    (none)
     )
   )
 

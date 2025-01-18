@@ -4,138 +4,138 @@
 ;; failed to figure out what this is:
 (set! (-> *game-info* hint-control) (new 'static 'boxed-array :type level-hint-control
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id training-ironcrate)
+                                        :id (text-id training-ironcrate)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 3
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id training-eco-reminder)
+                                        :id (text-id training-eco-reminder)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id sidekick-hint-crate-iron)
+                                        :id (text-id sidekick-hint-crate-iron)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing 3
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id sidekick-hint-crate-steel)
+                                        :id (text-id sidekick-hint-crate-steel)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id sidekick-hint-orb-cache-top)
+                                        :id (text-id sidekick-hint-orb-cache-top)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id beach-grottopole-increment)
+                                        :id (text-id beach-grottopole-increment)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 3)
-                                        :id (game-text-id sidekick-hint-ecorocks)
+                                        :id (text-id sidekick-hint-ecorocks)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 5)
-                                        :id (game-text-id sidekick-hint-reflector-mirror)
+                                        :id (text-id sidekick-hint-reflector-mirror)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 3)
-                                        :id (game-text-id sidekick-hint-precurbridge)
+                                        :id (text-id sidekick-hint-precurbridge)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id misty-teetertotter)
+                                        :id (text-id misty-teetertotter)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 3)
-                                        :id (game-text-id misty-bone-bridge-hint)
+                                        :id (text-id misty-bone-bridge-hint)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 5)
-                                        :id (game-text-id rolling-plants-hint-eco-green)
+                                        :id (text-id rolling-plants-hint-eco-green)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 15)
-                                        :id (game-text-id sunken-bully-dive-hint)
+                                        :id (text-id sunken-bully-dive-hint)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing 2
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 60)
-                                        :id (game-text-id sunken-qbert-plat-hint)
+                                        :id (text-id sunken-qbert-plat-hint)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id sunken-blue-eco-charger-all-hint)
+                                        :id (text-id sunken-blue-eco-charger-all-hint)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id sunken-blue-eco-charger-hint)
+                                        :id (text-id sunken-blue-eco-charger-hint)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing 2
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id swamp-tetherrock-eco-yellow-hint)
+                                        :id (text-id swamp-tetherrock-eco-yellow-hint)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 30)
-                                        :id (game-text-id sunken-double-lurker-hint)
+                                        :id (text-id sunken-double-lurker-hint)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id sunken-hotpipes)
+                                        :id (text-id sunken-hotpipes)
                                         :num-attempts-before-playing 3
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id snow-ram-boss-red-eco-hint)
+                                        :id (text-id snow-ram-boss-red-eco-hint)
                                         :num-attempts-before-playing 5
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 3)
-                                        :id (game-text-id darkcave-light-hint)
+                                        :id (text-id darkcave-light-hint)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id cave-gnawers-look-around)
+                                        :id (text-id cave-gnawers-look-around)
                                         :num-attempts-before-playing 4
                                         :num-success-before-killing -1
                                         )
                                       (new 'static 'level-hint-control
-                                        :id (game-text-id lavatube-balls)
+                                        :id (text-id lavatube-balls)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 2
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 5)
-                                        :id (game-text-id citadel-generator)
+                                        :id (text-id citadel-generator)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
                                       (new 'static 'level-hint-control
                                         :delay-before-playing (seconds 5)
-                                        :id (game-text-id citadel-generator-no-mushroom)
+                                        :id (text-id citadel-generator-no-mushroom)
                                         :num-attempts-before-playing 1
                                         :num-success-before-killing 1
                                         )
@@ -225,7 +225,7 @@
       )
 
 ;; definition for function find-hint-control-index
-(defun find-hint-control-index ((arg0 game-text-id))
+(defun find-hint-control-index ((arg0 text-id))
   (let ((gp-0 -1))
     (let ((v1-2 (length (-> *game-info* hint-control))))
       (dotimes (a0-2 v1-2)
@@ -241,13 +241,13 @@
 
 ;; definition for function start-hint-timer
 ;; INFO: Return type mismatch int vs none.
-(defun start-hint-timer ((arg0 game-text-id))
+(defun start-hint-timer ((arg0 text-id))
   (let ((v1-0 (find-hint-control-index arg0)))
     (when (and (>= v1-0 0)
                (zero? (-> *game-info* hint-control v1-0 start-time))
                (!= (-> *game-info* hint-control v1-0 num-attempts-before-playing) 1)
                )
-      (set! (-> *game-info* hint-control v1-0 start-time) (-> *display* base-frame-counter))
+      (set-time! (-> *game-info* hint-control v1-0 start-time))
       0
       )
     )
@@ -257,7 +257,7 @@
 
 ;; definition for function increment-success-for-hint
 ;; INFO: Return type mismatch int vs none.
-(defun increment-success-for-hint ((arg0 game-text-id))
+(defun increment-success-for-hint ((arg0 text-id))
   (let ((gp-0 (find-hint-control-index arg0)))
     (when (>= gp-0 0)
       (seekl! (-> *game-info* hint-control gp-0 num-success) 127 1)
@@ -270,7 +270,7 @@
 
 ;; definition for function can-hint-be-played?
 ;; WARN: disable def twice: 139. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
-(defun can-hint-be-played? ((arg0 game-text-id) (arg1 entity) (arg2 string))
+(defun can-hint-be-played? ((arg0 text-id) (arg1 entity) (arg2 string))
   (let ((v1-0 (not (str-is-playing?))))
     (if (and v1-0 (nonzero? arg0))
         (set! v1-0 (not (seen-text? *game-info* arg0)))
@@ -280,7 +280,7 @@
         (set! v1-0 (appeared-for-long-enough? (the-as level-hint (ppointer->process *hint-semaphore*))))
         0
         )
-      (when (and v1-0 (< (- (-> *display* base-frame-counter) (-> *game-info* hint-play-time)) (seconds 0.1)))
+      (when (and v1-0 (not (time-elapsed? (-> *game-info* hint-play-time) (seconds 0.1))))
         (set! v1-0 #f)
         0
         )
@@ -289,7 +289,7 @@
                       (not (-> *setting-control* current spooling))
                       (not (-> *setting-control* current hint))
                       (not (-> *setting-control* current ambient))
-                      (>= (-> *display* base-frame-counter) (-> *game-info* blackout-time))
+                      (>= (current-time) (-> *game-info* blackout-time))
                       )
             )
       0
@@ -303,7 +303,7 @@
              )
             (else
               (let ((gp-1 (-> *game-info* hint-control v1-16))
-                    (a0-24 (- (-> *display* base-frame-counter) (-> *game-info* hint-control v1-16 last-time-called)))
+                    (a0-24 (- (current-time) (-> *game-info* hint-control v1-16 last-time-called)))
                     (v1-21 #t)
                     )
                 (if (and (= (-> gp-1 num-attempts-before-playing) 1) (< a0-24 (seconds 0.1)))
@@ -312,13 +312,13 @@
                 (cond
                   ((and (!= (-> gp-1 num-attempts-before-playing) 1)
                         (nonzero? (-> gp-1 last-time-called))
-                        (< (- (-> *display* base-frame-counter) (-> gp-1 last-time-called)) (seconds 0.5))
+                        (not (time-elapsed? (-> gp-1 last-time-called) (seconds 0.5)))
                         )
-                   (set! (-> gp-1 last-time-called) (-> *display* base-frame-counter))
+                   (set-time! (-> gp-1 last-time-called))
                    #f
                    )
                   (else
-                    (set! (-> gp-1 last-time-called) (-> *display* base-frame-counter))
+                    (set-time! (-> gp-1 last-time-called))
                     (when (nonzero? (-> gp-1 delay-before-playing))
                       (if (< (-> gp-1 start-time) (-> gp-1 delay-before-playing))
                           (set! v1-21 #f)

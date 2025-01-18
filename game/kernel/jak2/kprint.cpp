@@ -5,6 +5,7 @@
 
 #include "common/goal_constants.h"
 #include "common/listener_common.h"
+#include "common/log/log.h"
 #include "common/symbols.h"
 
 #include "game/kernel/common/fileio.h"
@@ -17,7 +18,7 @@
 namespace jak2 {
 
 void output_sql_query(char* query_name) {
-  if (MasterDebug != 0) {
+  if (MasterDebug) {
     sprintf(strend(OutputBufArea.cast<char>().c() + sizeof(ListenerMessageHeader)), "sql-query \"");
 
     char* buffer_ptr = strend(OutputBufArea.cast<char>().c() + sizeof(ListenerMessageHeader));
@@ -76,6 +77,7 @@ s32 format_impl_jak2(uint64_t* args) {
     print_temp = PrintBufArea.cast<char>().c() + sizeof(ListenerMessageHeader);
   }
   PrintPending = make_ptr(strend(print_temp)).cast<u8>();
+  assert_print_buffer_has_room(PrintPending.c());
 
   // what we write to
   char* output_ptr = PrintPending.cast<char>().c();
@@ -123,7 +125,7 @@ s32 format_impl_jak2(uint64_t* args) {
       }
 
       // read arguments
-      while ((u8)(format_ptr[1] - '0') < 10 ||  // number 0 to 10
+      while ((u8)(format_ptr[1] - '0') < 10 ||  // number 0 to 9
              format_ptr[1] == ',' ||            // comma
              format_ptr[1] == '\'' ||           // quote
              format_ptr[1] == '`' ||            // backtick
@@ -516,12 +518,15 @@ s32 format_impl_jak2(uint64_t* args) {
         default:
           MsgErr("format: unknown code 0x%02x\n", format_ptr[1]);
           MsgErr("input was %s\n", format_cstring);
-          ASSERT(false);
+          // ASSERT(false);
+          goto copy_char_hack;
           break;
       }
       format_ptr++;
     } else {
-      // got normal char, just copy it
+    // got normal char, just copy it
+    copy_char_hack:  // we goto here if we get a bad code for ~, which sort of backtracks and falls
+                     // back to regular character copying
       *output_ptr = *format_ptr;
       output_ptr++;
     }
@@ -531,6 +536,7 @@ s32 format_impl_jak2(uint64_t* args) {
   // end
   *output_ptr = 0;
   output_ptr++;
+  assert_print_buffer_has_room((const u8*)output_ptr);
 
   if (original_dest == s7.offset + FIX_SYM_TRUE) {
     // #t means to put it in the print buffer
@@ -538,11 +544,16 @@ s32 format_impl_jak2(uint64_t* args) {
     // change for Jak 2: if we are disk-booting and do a (format #t, immediately flush to stdout.
     // we'd get these eventually in ClearPending, but for some reason they flush these here.
     // This is nicer because we may crash in between here and flushing the print buffer.
-    // It's actually really annoying though so we disable it when in debug mode
-    if (DiskBoot && !MasterDebug) {
-      printf("%s", PrintPendingLocal3);
-      fflush(stdout);
+    if (DiskBoot) {
+      // however, we are going to disable it anyway because it spams the console and is annoying
+      if (false) {
+        lg::print("{}", PrintPendingLocal3);
+        // printf("%s", PrintPendingLocal3);
+        // fflush(stdout);
+      }
       PrintPending = make_ptr(PrintPendingLocal2).cast<u8>();
+      // if we don't comment this line, our output gets cleared
+      // *PrintPendingLocal3 = 0;
     }
 
     return 0;
@@ -553,8 +564,9 @@ s32 format_impl_jak2(uint64_t* args) {
     *PrintPendingLocal3 = 0;
     return string;
   } else if (original_dest == 0) {
-    printf("%s", PrintPendingLocal3);
-    fflush(stdout);
+    lg::print("{}", PrintPendingLocal3);
+    // printf("%s", PrintPendingLocal3);
+    // fflush(stdout);
     PrintPending = make_ptr(PrintPendingLocal2).cast<u8>();
     *PrintPendingLocal3 = 0;
     return 0;

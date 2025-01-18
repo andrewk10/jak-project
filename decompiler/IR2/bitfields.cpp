@@ -489,18 +489,31 @@ FormElement* BitfieldAccessElement::push_step(const BitfieldManip step,
 
     int size = 64 - step.amount;
     int start_bit = end_bit - size;
+    bool neg = false;
     if (start_bit < 0) {
-      throw std::runtime_error("Bad bitfield start bit");
+      // throw std::runtime_error("push_step: Bad bitfield start bit");
+      size += start_bit;
+      start_bit = 0;
+      neg = true;
     }
 
     auto type = ts.lookup_type(m_type);
     auto as_bitfield = dynamic_cast<BitFieldType*>(type);
     ASSERT(as_bitfield);
     auto field = find_field(ts, as_bitfield, start_bit, size, is_unsigned);
-    auto result =
+    auto deref =
         pool.alloc_element<DerefElement>(m_base, false, DerefToken::make_field_name(field.name()));
-    result->inline_nested();
-    return result;
+    deref->inline_nested();
+    if (neg) {
+      ASSERT(is_unsigned);
+      auto result = pool.alloc_element<GenericElement>(
+          GenericOperator::make_fixed(FixedOperatorKind::SHL),
+          pool.form<CastElement>(TypeSpec("int"), pool.alloc_single_form(nullptr, deref)),
+          pool.form<SimpleAtomElement>(SimpleAtom::make_int_constant(64 - step.amount)));
+      return result;
+    } else {
+      return deref;
+    }
   }
 
   if (m_steps.empty() && step.kind == BitfieldManip::Kind::LOGAND_WITH_CONSTANT_INT) {
@@ -961,18 +974,29 @@ Form* cast_to_bitfield_enum(const EnumType* type_info,
   if (in == -1) {
     return nullptr;
   }
-  auto elts = decompile_bitfield_enum_from_int(TypeSpec(type_info->get_name()), env.dts->ts, in);
+  TypeSpec ts(type_info->get_name());
+  auto elts = try_decompile_bitfield_enum_from_int(ts, env.dts->ts, in, no_head);
   if (no_head) {
-    ASSERT(elts.size() >= 1);
+    ASSERT(elts->size() >= 1);
   }
+
+  if (!elts) {
+    if (in == 0xffff'ffff || in == INT64_MIN) {
+      return pool.form<CastElement>(
+          ts, pool.form<SimpleAtomElement>(SimpleAtom::make_int_constant(in)));
+    }
+    // backup failed, run again to get the nice error print.
+    try_decompile_bitfield_enum_from_int(ts, env.dts->ts, in, true);
+  }
+
   auto oper = GenericOperator::make_function(
-      pool.form<ConstantTokenElement>(no_head ? elts.at(0) : type_info->get_name()));
+      pool.form<ConstantTokenElement>(no_head ? elts->at(0) : type_info->get_name()));
   if (no_head) {
-    elts.erase(elts.begin());
+    elts->erase(elts->begin());
   }
 
   std::vector<Form*> form_elts;
-  for (auto& x : elts) {
+  for (auto& x : *elts) {
     form_elts.push_back(pool.form<ConstantTokenElement>(x));
   }
   return pool.form<GenericElement>(oper, form_elts);

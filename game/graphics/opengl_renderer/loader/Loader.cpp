@@ -9,16 +9,6 @@
 
 #include "third-party/imgui/imgui.h"
 
-namespace {
-std::string uppercase_string(const std::string& s) {
-  std::string result;
-  for (auto c : s) {
-    result.push_back(toupper(c));
-  }
-  return result;
-}
-}  // namespace
-
 Loader::Loader(const fs::path& base_path, int max_levels)
     : m_base_path(base_path), m_max_levels(max_levels) {
   m_loader_thread = std::thread(&Loader::loader_thread, this);
@@ -49,6 +39,13 @@ const LevelData* Loader::get_tfrag3_level(const std::string& level_name) {
   } else {
     existing->second->frames_since_last_used = 0;
     return existing->second.get();
+  }
+}
+
+void Loader::debug_print_loaded_levels() {
+  std::unique_lock<std::mutex> lk(m_loader_mutex);
+  for (const auto& [name, _] : m_loaded_tfrag3_levels) {
+    fmt::print("{}\n", name);
   }
 }
 
@@ -84,15 +81,24 @@ void Loader::set_want_levels(const std::vector<std::string>& levels) {
 }
 
 /*!
+ * The game calls this to tell the loader that we absolutely want these levels active.
+ * This will NOT trigger a load!
+ */
+void Loader::set_active_levels(const std::vector<std::string>& levels) {
+  std::unique_lock<std::mutex> lk(m_loader_mutex);
+  m_active_levels = levels;
+}
+
+/*!
  * Get all levels that are in memory and used very recently.
  */
 std::vector<LevelData*> Loader::get_in_use_levels() {
   std::vector<LevelData*> result;
   std::unique_lock<std::mutex> lk(m_loader_mutex);
 
-  for (auto& lev : m_loaded_tfrag3_levels) {
-    if (lev.second->frames_since_last_used < 5) {
-      result.push_back(lev.second.get());
+  for (auto& [name, lev] : m_loaded_tfrag3_levels) {
+    if (lev->frames_since_last_used < 5) {
+      result.push_back(lev.get());
     }
   }
   return result;
@@ -161,6 +167,7 @@ void Loader::draw_debug_window() {
 void Loader::loader_thread() {
   try {
     while (!m_want_shutdown) {
+      prof().root_event();
       std::unique_lock<std::mutex> lk(m_loader_mutex);
 
       // this will keep us asleep until we've got a level to load.
@@ -176,39 +183,56 @@ void Loader::loader_thread() {
       // std::this_thread::sleep_for(std::chrono::milliseconds(1500));
 
       // load the fr3 file
+      prof().begin_event("read-file");
       Timer disk_timer;
-      auto data =
-          file_util::read_binary_file(m_base_path / fmt::format("{}.fr3", uppercase_string(lev)));
+      auto data = file_util::read_binary_file(m_base_path / fmt::format("{}.fr3", lev));
       double disk_load_time = disk_timer.getSeconds();
+      prof().end_event();
 
       // the FR3 files are compressed
+      prof().begin_event("decompress-file");
       Timer decomp_timer;
       auto decomp_data = compression::decompress_zstd(data.data(), data.size());
       double decomp_time = decomp_timer.getSeconds();
+      prof().end_event();
 
       // Read back into the tfrag3::Level structure
+      prof().begin_event("deserialize");
       Timer import_timer;
       auto result = std::make_unique<tfrag3::Level>();
       Serializer ser(decomp_data.data(), decomp_data.size());
       result->serialize(ser);
       double import_time = import_timer.getSeconds();
+      prof().end_event();
 
       // and finally "unpack", which creates the vertex data we'll upload to the GPU
+
       Timer unpack_timer;
-      for (auto& tie_tree : result->tie_trees) {
-        for (auto& tree : tie_tree) {
-          tree.unpack();
-        }
-      }
-      for (auto& t_tree : result->tfrag_trees) {
-        for (auto& tree : t_tree) {
-          tree.unpack();
+      {
+        auto p = scoped_prof("tie-unpack");
+        for (auto& tie_tree : result->tie_trees) {
+          for (auto& tree : tie_tree) {
+            tree.unpack();
+          }
         }
       }
 
-      for (auto& shrub_tree : result->shrub_trees) {
-        shrub_tree.unpack();
+      {
+        auto p = scoped_prof("tfrag-unpack");
+        for (auto& t_tree : result->tfrag_trees) {
+          for (auto& tree : t_tree) {
+            tree.unpack();
+          }
+        }
       }
+
+      {
+        auto p = scoped_prof("shrub-unpack");
+        for (auto& shrub_tree : result->shrub_trees) {
+          shrub_tree.unpack();
+        }
+      }
+
       fmt::print(
           "------------> Load from file: {:.3f}s, import {:.3f}s, decomp {:.3f}s unpack {:.3f}s\n",
           disk_load_time, import_time, decomp_time, unpack_timer.getSeconds());
@@ -230,7 +254,7 @@ void Loader::loader_thread() {
  * Load a "common" FR3 file that has non-level textures.
  * This should be called during initialization, before any threaded loading goes on.
  */
-void Loader::load_common(TexturePool& tex_pool, const std::string& name) {
+const tfrag3::Level& Loader::load_common(TexturePool& tex_pool, const std::string& name) {
   auto data = file_util::read_binary_file(m_base_path / fmt::format("{}.fr3", name));
 
   auto decomp_data = compression::decompress_zstd(data.data(), data.size());
@@ -251,6 +275,7 @@ void Loader::load_common(TexturePool& tex_pool, const std::string& name) {
   while (!done) {
     done = mls.run(tim, input);
   }
+  return *m_common_level.level;
 }
 
 bool Loader::upload_textures(Timer& timer, LevelData& data, TexturePool& texture_pool) {
@@ -336,7 +361,7 @@ void Loader::update_blocking(TexturePool& tex_pool) {
 }
 
 const std::string* Loader::get_most_unloadable_level() {
-  for (const auto& [name, lev] : m_loaded_tfrag3_levels) {
+  for (auto& [name, lev] : m_loaded_tfrag3_levels) {
     if (lev->frames_since_last_used > 180 &&
         std::find(m_desired_levels.begin(), m_desired_levels.end(), name) ==
             m_desired_levels.end()) {
@@ -355,9 +380,18 @@ const std::string* Loader::get_most_unloadable_level() {
 void Loader::update(TexturePool& texture_pool) {
   Timer loader_timer;
 
-  // only main thread can touch this.
-  for (auto& lev : m_loaded_tfrag3_levels) {
-    lev.second->frames_since_last_used++;
+  {
+    // lock because we're accessing m_active_levels
+    std::unique_lock<std::mutex> lk(m_loader_mutex);
+    // only main thread can touch this.
+    for (auto& [name, lev] : m_loaded_tfrag3_levels) {
+      if (std::find(m_active_levels.begin(), m_active_levels.end(), name) ==
+          m_active_levels.end()) {
+        lev->frames_since_last_used++;
+      } else {
+        lev->frames_since_last_used = 0;
+      }
+    }
   }
 
   bool did_gpu_stuff = false;
@@ -437,30 +471,31 @@ void Loader::update(TexturePool& texture_pool) {
               }
             }
           }
-
-          glBindTexture(GL_TEXTURE_2D, tex);
-          glDeleteTextures(1, &tex);
+          m_garbage_textures.push_back(tex);
         }
 
         for (auto& tie_geo : lev->tie_data) {
           for (auto& tie_tree : tie_geo) {
-            glDeleteBuffers(1, &tie_tree.vertex_buffer);
+            m_garbage_buffers.push_back(tie_tree.vertex_buffer);
             if (tie_tree.has_wind) {
-              glDeleteBuffers(1, &tie_tree.wind_indices);
+              m_garbage_buffers.push_back(tie_tree.wind_indices);
             }
-            glDeleteBuffers(1, &tie_tree.index_buffer);
+            m_garbage_buffers.push_back(tie_tree.index_buffer);
           }
         }
 
         for (auto& tfrag_geo : lev->tfrag_vertex_data) {
           for (auto& tfrag_buff : tfrag_geo) {
-            glDeleteBuffers(1, &tfrag_buff);
+            m_garbage_buffers.push_back(tfrag_buff);
           }
         }
 
-        glDeleteBuffers(1, &lev->collide_vertices);
-        glDeleteBuffers(1, &lev->merc_vertices);
-        glDeleteBuffers(1, &lev->merc_indices);
+        m_garbage_buffers.push_back(lev->hfrag_indices);
+        m_garbage_buffers.push_back(lev->hfrag_indices);
+
+        m_garbage_buffers.push_back(lev->collide_vertices);
+        m_garbage_buffers.push_back(lev->merc_vertices);
+        m_garbage_buffers.push_back(lev->merc_indices);
 
         for (auto& model : lev->level->merc_data.models) {
           auto& mercs = m_all_merc_models.at(model.name);
@@ -475,7 +510,22 @@ void Loader::update(TexturePool& texture_pool) {
     }
 
     if (unload_timer.getMs() > 5.f) {
-      fmt::print("Unload took {:.2f}\n", unload_timer.getMs());
+      fmt::print("Unload took {:.2f}ms\n", unload_timer.getMs());
+    }
+
+    if (!m_garbage_buffers.empty()) {
+      did_gpu_stuff = true;
+      for (int i = 0; i < 5 && !m_garbage_buffers.empty(); i++) {
+        glDeleteBuffers(1, &m_garbage_buffers.back());
+        m_garbage_buffers.pop_back();
+      }
+    }
+
+    if (!did_gpu_stuff && !m_garbage_textures.empty()) {
+      for (int i = 0; i < 20 && !m_garbage_textures.empty(); i++) {
+        glDeleteTextures(1, &m_garbage_textures.back());
+        m_garbage_textures.pop_back();
+      }
     }
   }
 

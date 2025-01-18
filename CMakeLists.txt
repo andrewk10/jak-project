@@ -1,7 +1,8 @@
 # Top Level CMakeLists.txt
 cmake_minimum_required(VERSION 3.10)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(jak)
 include(CTest)
 
@@ -18,14 +19,20 @@ option(STATICALLY_LINK "Build for release purposes (statically link everything)"
 message(STATUS "Statically Link? ${STATICALLY_LINK}")
 if(STATICALLY_LINK)
     set(BUILD_SHARED_LIBS OFF)
+    set(BUILD_STATIC_LIBS ON)
 else()
     set(BUILD_SHARED_LIBS ON)
+    set(BUILD_STATIC_LIBS OFF)
+endif()
+
+# For clangd
+if (EXISTS "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json" )
+    configure_file(
+        "${CMAKE_CURRENT_BINARY_DIR}/compile_commands.json"
+        "${PROJECT_SOURCE_DIR}/build/compile_commands.json")
 endif()
 
 # Setup compiler flags
-# TODO - consider moving most of the configuration into presets
-# - https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html
-# - requires atleast CMake 3.19
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     message(STATUS "Clang Detected - Setting Defaults")
     set(CMAKE_CXX_FLAGS
@@ -33,21 +40,24 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         -fcxx-exceptions \
         -fexceptions \
         -fdiagnostics-color=always \
-        -std=c++17 \
         -mavx \
         -Wall \
         -Wno-c++11-narrowing \
         -Wno-c++98-compat \
-        -O3")
+        -Wno-deprecated-this-capture \
+        -Wno-missing-field-initializers \
+        -Wno-sign-compare \
+        -Wno-ignored-qualifiers \
+        -O3 \
+        -D_CRT_SECURE_NO_WARNINGS")
 
     # Increase stack size for windows, who's default is too low
     if(WIN32)
         # Increase the reserved stack size for all threads to 16MB
         # Note: this is only _reserved_ memory, not necessarily _committed_ memory
-        # TODO - test with add_link_options instead
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LDFLAGS} -Xlinker /STACK:16000000")
     else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb -g -Wextra")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ggdb -g")
     endif()
 
     # additional c++ and linker flags for release mode for our projects
@@ -56,7 +66,6 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 
     if(CMAKE_BUILD_TYPE MATCHES "RelWithDebInfo")
-        # TODO - test with add_link_options instead
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LDFLAGS} -Xlinker /debug")
     endif()
 
@@ -81,7 +90,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         -Wdisabled-optimization \
         -Wformat \
         -Wextra \
-        -Wmissing-include-dirs \
         -Woverloaded-virtual \
         -Wredundant-decls \
         -Wshadow \
@@ -98,7 +106,6 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
     message(STATUS "AppleClang detected - Setting Defaults")
     set(CMAKE_CXX_FLAGS
         "${CMAKE_CXX_FLAGS} \
-        -march=native \
         -Wall \
         -Winit-self \
         -ggdb \
@@ -108,14 +115,18 @@ elseif(CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
         -Wdisabled-optimization \
         -Wformat \
         -Wextra \
-        -Wmissing-include-dirs \
         -Woverloaded-virtual \
         -Wredundant-decls \
         -Wshadow \
         -Wsign-promo \
-        -O3 \
         -fdiagnostics-color=always"
         )
+    
+    # pin to AVX for macOS, hopefully all macOS runners have atleast this architecture
+    # technically speaking, SSE4 is the cutoff for Apple Silicon so...only a matter of time!
+    if(NOT CMAKE_CXX_COMPILER_TARGET STREQUAL "arm64-apple-darwin")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mavx")
+    endif()
 
     # additional c++ flags for release mode for our projects
     if(CMAKE_BUILD_TYPE MATCHES "Release")
@@ -151,8 +162,6 @@ if(WIN32)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-    set(CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION 7.1.7600.0.30514) # win7.1, supports xp
-    message("Windows SDK version: ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
 endif()
 
 # Code Coverage
@@ -164,24 +173,67 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CODE_COVERAGE)
     message(STATUS "Code Coverage build is enabled!")
 endif()
 
+function(build_third_party_lib dir_name target_name)
+    add_subdirectory(third-party/${dir_name} EXCLUDE_FROM_ALL)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
+        # For Microsoft Visual C++ Compiler (MSVC)
+        target_compile_options(${target_name} PRIVATE /w)
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+        # For GNU Compiler Collection (GCC) or Clang
+        target_compile_options(${target_name} PRIVATE -w)
+    endif()
+endfunction()
+
+
 # Dependencies and Libraries
 # includes relative to top level jak-project folder
 include_directories(./)
 
 # build templating engine library
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${THIRDPARTY_IGNORED_WARNINGS} ")
 include_directories(SYSTEM third-party/inja)
 
+# libcurl for HTTP requests
+# Enable SSL Support, most URLs now-a-days use SSL!
+# TODO - probably integrate with ZSTD since we have it already
+set(CURL_USE_LIBSSH2 OFF)
+set(CURL_ZLIB OFF)
+if(WIN32)
+    set(CURL_USE_SCHANNEL ON) # native Windows SSL support
+elseif(APPLE)
+    set(CURL_USE_SECTRANSP ON) # native macOS SSL support
+else()
+    if(STATICALLY_LINK)
+        set(OPENSSL_USE_STATIC_LIBS TRUE)
+    endif()
+    set(CURL_USE_OPENSSL ON) # not native, but seems to be the best choice for linux
+endif()
+include_directories(third-party/curl/include)
+if(STATICALLY_LINK)
+    build_third_party_lib(curl libcurl_static)
+else()
+    build_third_party_lib(curl libcurl_shared)
+endif()
+
 # build repl library
-add_subdirectory(third-party/replxx EXCLUDE_FROM_ALL)
+build_third_party_lib(replxx replxx)
 
 # SQLite - Jak 2/3's built in editor
 add_definitions(-DHAVE_USLEEP=1)
 add_definitions(-DSQLITE_THREADSAFE=1)
+add_definitions(-DSQLITE_ENABLE_JSON1)
 add_definitions(-DSQLITE_ENABLE_RTREE)
-include_directories(third-party/SQLiteCpp/include)
-add_subdirectory(third-party/SQLiteCpp)
-string(REPLACE " ${THIRDPARTY_IGNORED_WARNINGS} " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+build_third_party_lib(sqlite3 sqlite3)
+
+# build tree-sitter parser
+include_directories(third-party/tree-sitter/tree-sitter/lib/include)
+build_third_party_lib(tree-sitter tree-sitter)
+
+# native OS dialogs for error messages
+build_third_party_lib(libtinyfiledialogs libtinyfiledialogs)
+
+# build format library
+include_directories(third-party/fmt/include)
+build_third_party_lib(fmt fmt)
 
 # build common library
 add_subdirectory(common)
@@ -189,24 +241,28 @@ add_subdirectory(common)
 # build decompiler
 add_subdirectory(decompiler)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${THIRDPARTY_IGNORED_WARNINGS} ")
-add_subdirectory(third-party/cubeb EXCLUDE_FROM_ALL)
+# cubeb - audio
+build_third_party_lib(cubeb cubeb)
 
 # build LSP
 add_subdirectory(lsp)
 
-# build libco
-add_subdirectory(third-party/libco)
+# build libco and zstd
+build_third_party_lib(libco libco)
+build_third_party_lib(zstd libzstd_static)
 
-# build glfw library
-add_subdirectory(third-party/glfw EXCLUDE_FROM_ALL)
-add_subdirectory(third-party/zstd EXCLUDE_FROM_ALL)
+# build SDL
+include(SDLOptions)
+if(STATICALLY_LINK)
+    build_third_party_lib(SDL SDL2-static)
+else()
+    build_third_party_lib(SDL SDL2)
+endif()
 
 # build imgui
 include_directories(third-party/glad/include)
-include_directories(third-party/glfw/include)
-add_subdirectory(third-party/imgui EXCLUDE_FROM_ALL)
-string(REPLACE " ${THIRDPARTY_IGNORED_WARNINGS} " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+include_directories(third-party/SDL/include)
+build_third_party_lib(imgui imgui)
 
 # build the game code in C++
 add_subdirectory(game)
@@ -222,28 +278,26 @@ if(WIN32)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${THIRDPARTY_IGNORED_WARNINGS} ")
-add_subdirectory(third-party/googletest EXCLUDE_FROM_ALL)
+build_third_party_lib(googletest gtest)
 include(GoogleTest)
-string(REPLACE " ${THIRDPARTY_IGNORED_WARNINGS} " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 # build tests
 include(test/CMakeLists.txt)
 
 # build lzokay library
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${THIRDPARTY_IGNORED_WARNINGS} ")
-add_subdirectory(third-party/lzokay EXCLUDE_FROM_ALL)
+build_third_party_lib(lzokay lzokay)
 
-# build format library
-add_subdirectory(third-party/fmt EXCLUDE_FROM_ALL)
-
-add_subdirectory(third-party/stb_image EXCLUDE_FROM_ALL)
-add_subdirectory(third-party/tiny_gltf EXCLUDE_FROM_ALL)
-add_subdirectory(third-party/xdelta3 EXCLUDE_FROM_ALL)
+build_third_party_lib(stb_image stb_image)
+# build draco library for tinygltf compression support
+include_directories(third-party/draco/src)
+add_subdirectory(third-party/draco)
+add_compile_definitions(TINYGLTF_ENABLE_DRACO)
+build_third_party_lib(tiny_gltf tiny_gltf)
+build_third_party_lib(xdelta3 xdelta3)
 
 # discord rich presence
 include_directories(third-party/discord-rpc/include)
-add_subdirectory(third-party/discord-rpc EXCLUDE_FROM_ALL)
+build_third_party_lib(discord-rpc discord-rpc)
 
 # build zydis third party library for disassembling x86
 # TODO - Once under CMake 3.13's policy CMP0077, override with `set()` instead
@@ -258,10 +312,9 @@ else()
     option(ZYDIS_BUILD_SHARED_LIB "Zydis: Build shared library" ON)
 endif()
 
-add_subdirectory(third-party/zydis EXCLUDE_FROM_ALL)
+build_third_party_lib(zydis Zydis)
 
 # windows memory management lib
 if(WIN32)
-    add_subdirectory(third-party/mman)
+    build_third_party_lib(mman mman)
 endif()
-string(REPLACE " ${THIRDPARTY_IGNORED_WARNINGS} " "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")

@@ -5,8 +5,8 @@
       "comments": true,
       "strings": true
     },
-    "editor.wordBasedSuggestions": true,
+    "editor.wordBasedSuggestions": "matchingDocuments",
     "editor.snippetSuggestions": "top"
   },
-  "python.formatting.provider": "black"
+  "cmake.configureOnOpen": false
 }

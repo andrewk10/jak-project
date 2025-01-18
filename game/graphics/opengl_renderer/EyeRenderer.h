@@ -6,7 +6,9 @@
 #include "game/graphics/opengl_renderer/opengl_utils.h"
 #include "game/graphics/pipelines/opengl.h"
 
-constexpr int EYE_BASE_BLOCK = 8160;
+constexpr int EYE_BASE_BLOCK_JAK1 = 8160;
+constexpr int EYE_BASE_BLOCK_JAK2 = 3968;
+constexpr int EYE_BASE_BLOCK_JAK3 = 504;
 constexpr int NUM_EYE_PAIRS = 20;
 constexpr int SINGLE_EYE_SIZE = 32;
 
@@ -20,10 +22,11 @@ class EyeRenderer : public BucketRenderer {
 
   void handle_eye_dma2(DmaFollower& dma, SharedRenderState* render_state, ScopedProfilerNode& prof);
   std::optional<u64> lookup_eye_texture(u8 eye_id);
+  std::optional<u64> lookup_eye_texture_hash(u64 hash, bool lr);
 
   struct SpriteInfo {
     u8 a;
-    u32 uv0[2];
+    u64 uv0;  // stores hashed name of merc-ctrl that reads this eye.
     u32 uv1[2];
     u32 xyz0[3];
     u32 xyz1[3];
@@ -51,6 +54,8 @@ class EyeRenderer : public BucketRenderer {
     GpuTexture* gpu_tex = nullptr;
     u32 tbp;
     FramebufferTexturePair fb;
+    u64 fnv_name_hash = 0;
+    bool lr = false;
 
     // note: eye texture increased to 128x128 (originally 32x32) here.
     GpuEyeTex() : fb(128, 128, GL_UNSIGNED_INT_8_8_8_8_REV) {}
@@ -63,6 +68,7 @@ class EyeRenderer : public BucketRenderer {
   GLuint m_gl_vertex_buffer;
 
   struct SingleEyeDraws {
+    u64 fnv_name_hash = 0;
     int lr;
     int pair;
     bool using_64 = false;

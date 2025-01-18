@@ -10,9 +10,6 @@
 ;; Appears to be unused. Possibly a particle ID?
 (deftype part-id (uint32)
   ()
-  :method-count-assert 9
-  :size-assert         #x4
-  :flag-assert         #x900000004
   )
 
 (defmacro s.w! (location value)
@@ -76,6 +73,19 @@
      `(* (/ (the float ,x) 360.0)
          DEGREES_PER_ROT
          )
+     )
+    )
+  )
+
+(defmacro fsec (x)
+  "Convert number to seconds unit.
+   Returns float."
+  (cond
+    ((or (integer? x) (float? x))
+     (* 1.0 TICKS_PER_SECOND x)
+     )
+    (#t
+     `(* 1.0 TICKS_PER_SECOND ,x)
      )
     )
   )

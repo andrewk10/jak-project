@@ -1,19 +1,30 @@
 #include "config.h"
 
-#include "common/versions.h"
+#include "common/versions/versions.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 namespace REPL {
 void to_json(json& j, const Config& obj) {
   j = json{
+      {"nreplPort", obj.nrepl_port},
+      {"gameVersionFolder", obj.game_version_folder},
       {"numConnectToTargetAttempts", obj.target_connect_attempts},
       {"asmFileSearchDirs", obj.asm_file_search_dirs},
       {"keybinds", obj.keybinds},
+      {"perGameHistory", obj.per_game_history},
+      {"permissiveRedefinitions", obj.permissive_redefinitions},
   };
 }
 
 void from_json(const json& j, Config& obj) {
+  // TODO - make a camelCase variant of json_serialize/deserialize macros
+  if (j.contains("nreplPort")) {
+    j.at("nreplPort").get_to(obj.nrepl_port);
+  }
+  if (j.contains("gameVersionFolder")) {
+    j.at("gameVersionFolder").get_to(obj.game_version_folder);
+  }
   if (j.contains("numConnectToTargetAttempts")) {
     j.at("numConnectToTargetAttempts").get_to(obj.target_connect_attempts);
   }
@@ -46,6 +57,12 @@ void from_json(const json& j, Config& obj) {
       }
       obj.keybinds = keybinds;
     }
+  }
+  if (j.contains("perGameHistory")) {
+    j.at("perGameHistory").get_to(obj.per_game_history);
+  }
+  if (j.contains("permissiveRedefinitions")) {
+    j.at("permissiveRedefinitions").get_to(obj.permissive_redefinitions);
   }
   // if there is game specific configuration, override any values we just set
   if (j.contains(version_to_game_name(obj.game_version))) {

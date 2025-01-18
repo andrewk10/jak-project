@@ -12,9 +12,8 @@
 #include "decompiler/IR2/Form.h"
 #include "decompiler/ObjectFile/LinkedObjectFile.h"
 #include "decompiler/analysis/final_output.h"
-#include "decompiler/util/sparticle_decompile.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 namespace decompiler {
 
@@ -32,16 +31,18 @@ goos::Object decompile_at_label_with_hint(const LabelInfo& hint,
   if (!hint.array_size.has_value()) {
     // if we don't have an array size, treat it as just a normal type.
     if (hint.is_value) {
-      throw std::runtime_error(fmt::format(
-          "Label {} was marked as a value, but is being decompiled as a reference.", hint.name));
+      throw std::runtime_error(
+          fmt::format("Label {} was marked as a value, but is being decompiled as a reference (1).",
+                      hint.name));
     }
     return decompile_at_label(type, label, labels, words, ts, file, version);
   }
 
   if (type.base_type() == "pointer") {
     if (hint.is_value) {
-      throw std::runtime_error(fmt::format(
-          "Label {} was marked as a value, but is being decompiled as a reference.", hint.name));
+      throw std::runtime_error(
+          fmt::format("Label {} was marked as a value, but is being decompiled as a reference (2).",
+                      hint.name));
     }
     auto field_type_info = ts.lookup_type(type.get_single_arg());
     if (field_type_info->is_reference()) {
@@ -52,11 +53,20 @@ goos::Object decompile_at_label_with_hint(const LabelInfo& hint,
       auto stride = field_type_info->get_size_in_memory();
 
       int word_count = ((stride * (*hint.array_size)) + 3) / 4;
-      std::vector<LinkedWord> obj_words;
-      obj_words.insert(obj_words.begin(),
-                       words.at(label.target_segment).begin() + (label.offset / 4),
-                       words.at(label.target_segment).begin() + (label.offset / 4) + word_count);
+      int max_word = words.at(label.target_segment).size();
+      int start_word = label.offset / 4;
+      if (start_word + word_count > max_word) {
+        throw std::runtime_error(
+            fmt::format("Decompiling array of {} values of type {} would go past the end of the "
+                        "file. The file has {} words, the array starts at word {}, and has length "
+                        "{} words, which would make it end at {}",
+                        *hint.array_size, type.get_single_arg().print(), max_word, start_word,
+                        word_count, start_word + word_count));
+      }
 
+      std::vector<LinkedWord> obj_words;
+      obj_words.insert(obj_words.begin(), words.at(label.target_segment).begin() + start_word,
+                       words.at(label.target_segment).begin() + start_word + word_count);
       return decompile_value_array(type.get_single_arg(), field_type_info, *hint.array_size, stride,
                                    0, obj_words, ts);
     }
@@ -64,8 +74,9 @@ goos::Object decompile_at_label_with_hint(const LabelInfo& hint,
 
   if (type.base_type() == "inline-array") {
     if (hint.is_value) {
-      throw std::runtime_error(fmt::format(
-          "Label {} was marked as a value, but is being decompiled as a reference.", hint.name));
+      throw std::runtime_error(
+          fmt::format("Label {} was marked as a value, but is being decompiled as a reference (3).",
+                      hint.name));
     }
     auto field_type_info = ts.lookup_type(type.get_single_arg());
     if (!field_type_info->is_reference()) {
@@ -168,7 +179,7 @@ goos::Object decompile_function_at_label(const DecompilerLabel& label,
     auto other_func = file->try_get_function_at_label(label);
     if (other_func && other_func->ir2.env.has_local_vars() && other_func->ir2.top_form &&
         other_func->ir2.expressions_succeeded) {
-      auto out = final_output_lambda(*other_func);
+      auto out = final_output_lambda(*other_func, file->version);
       if (in_static_pair) {
         return pretty_print::build_list("unquote", out);
       } else {
@@ -218,7 +229,8 @@ goos::Object decompile_at_label(const TypeSpec& type,
     }
   } catch (std::exception& ex) {
     throw std::runtime_error(
-        fmt::format("Unable to 'decompile_at_label' {}, Reason: {}", label.name, ex.what()));
+        fmt::format("Unable to 'decompile_at_label' {} (using type {}), Reason: {}", label.name,
+                    type.print(), ex.what()));
   }
 
   throw std::runtime_error(fmt::format(
@@ -331,7 +343,7 @@ s32 word_as_s32(const LinkedWord& w) {
 
 std::string print_def(const goos::Object& obj) {
   if (obj.is_pair() && obj.as_pair()->car.is_symbol() &&
-      obj.as_pair()->car.as_symbol()->name == "quote") {
+      obj.as_pair()->car.as_symbol() == "quote") {
     auto& rest = obj.as_pair()->cdr;
     if (rest.is_pair() && rest.as_pair()->cdr.is_empty_list()) {
       return fmt::format("'{}", rest.as_pair()->car.print());
@@ -678,7 +690,7 @@ goos::Object decompile_sound_spec(const TypeSpec& type,
     the_macro.push_back(pretty_print::to_symbol(fmt::format(":num {}", num)));
   }
   if (group != 1) {
-    the_macro.push_back(pretty_print::to_symbol(fmt::format(":group {}", num)));
+    the_macro.push_back(pretty_print::to_symbol(fmt::format(":group {}", group)));
   }
   if ((mask & 1) || volume != 1024) {
     implicit_mask |= 1 << 0;
@@ -955,6 +967,106 @@ const std::unordered_map<
                {"speeches", ArrayFieldDecompMeta(TypeSpec("bot-speech-info"), 16)},
                {"dirs", ArrayFieldDecompMeta(TypeSpec("vector"), 16)},
                {"speech-tunings", ArrayFieldDecompMeta(TypeSpec("bot-speech-tuning"), 16)}}},
+         }},
+        {GameVersion::Jak3,
+         {
+             {"ocean-near-indices",
+              {{"data", ArrayFieldDecompMeta(TypeSpec("ocean-near-index"), 32)}}},
+             {"ocean-mid-masks", {{"data", ArrayFieldDecompMeta(TypeSpec("ocean-mid-mask"), 8)}}},
+             {"lightning-probe-vars",
+              {{"probe-dirs", ArrayFieldDecompMeta(TypeSpec("vector"), 16)}}},
+             {"continue-point",
+              {{"want", ArrayFieldDecompMeta(TypeSpec("level-buffer-state-small"), 8)}}},
+             {"task-manager-info",
+              {{"sphere-array", ArrayFieldDecompMeta(TypeSpec("sphere"), 16)}}},
+             {"sparticle-launcher",
+              {{"init-specs", ArrayFieldDecompMeta(TypeSpec("sp-field-init-spec"), 16)}}},
+             {"sparticle-launch-group",
+              {{"launcher", ArrayFieldDecompMeta(TypeSpec("sparticle-group-item"), 32)}}},
+             {"simple-sprite-system",
+              {{"data", ArrayFieldDecompMeta(TypeSpec("sprite-glow-data"), 64)}}},
+             {"actor-hash-bucket",
+              {{"data", ArrayFieldDecompMeta(TypeSpec("actor-cshape-ptr"), 16)}}},
+             {"nav-mesh",
+              {{"poly-array", ArrayFieldDecompMeta(TypeSpec("nav-poly"), 64)},
+               {"nav-control-array", ArrayFieldDecompMeta(TypeSpec("nav-control"), 288)}}},
+             {"enemy-info",
+              {{"idle-anim-script", ArrayFieldDecompMeta(TypeSpec("idle-control-frame"), 32)}}},
+             {"nav-enemy-info",
+              {{"idle-anim-script", ArrayFieldDecompMeta(TypeSpec("idle-control-frame"), 32)}}},
+             {"vehicle-rider-info",
+              {{"grab-rail-array", ArrayFieldDecompMeta(TypeSpec("vehicle-grab-rail-info"), 48)},
+               {"attach-point-array", ArrayFieldDecompMeta(TypeSpec("vehicle-attach-point"), 32)}}},
+             {"vehicle-setup-info", {{"color", ArrayFieldDecompMeta(TypeSpec("vector"), 16)}}},
+             {"desbeast-path", {{"node", ArrayFieldDecompMeta(TypeSpec("desbeast-node"), 32)}}},
+             {"race-info",
+              {{"turbo-pad-array", ArrayFieldDecompMeta(TypeSpec("race-turbo-pad"), 32)},
+               {"racer-array", ArrayFieldDecompMeta(TypeSpec("race-racer-info"), 16)},
+               {"decision-point-array",
+                ArrayFieldDecompMeta(TypeSpec("race-decision-point"), 16)}}},
+             {"flyingsaw-graph", {{"node", ArrayFieldDecompMeta(TypeSpec("flyingsaw-node"), 48)}}},
+             {"nav-network-info",
+              {{"adjacency", ArrayFieldDecompMeta(TypeSpec("nav-network-adjacency"), 16)}}},
+             {"forest-path-points-static",
+              {{"points", ArrayFieldDecompMeta(TypeSpec("vector"), 16)}}},
+             {"xz-height-map",
+              {{"data", ArrayFieldDecompMeta(TypeSpec("int8"),
+                                             1,
+                                             ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
+             {"was-pre-game-game",
+              {{"wave", ArrayFieldDecompMeta(TypeSpec("was-pre-game-wave"), 32)}}},
+             {"lizard-graph",
+              {{"point", ArrayFieldDecompMeta(TypeSpec("vector"), 16)},
+               {"edge", ArrayFieldDecompMeta(TypeSpec("lizard-graph-edge"), 16)}}},
+             {"terraformer-graph",
+              {{"node", ArrayFieldDecompMeta(TypeSpec("terraformer-node"), 32)},
+               {"edge", ArrayFieldDecompMeta(TypeSpec("terraformer-edge"), 16)}}},
+             {"bombbot-path", {{"node", ArrayFieldDecompMeta(TypeSpec("bombbot-node"), 32)}}},
+             {"ai-task-pool",
+              {{"tasks", ArrayFieldDecompMeta(TypeSpec("uint32"),
+                                              4,
+                                              ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
+             {"bot-course", {{"spots", ArrayFieldDecompMeta(TypeSpec("bot-spot"), 32)}}},
+             {"ashelin-course",
+              {{"spots", ArrayFieldDecompMeta(TypeSpec("bot-spot"), 32)},
+               {"speeches", ArrayFieldDecompMeta(TypeSpec("bot-speech-info"), 16)},
+               {"dirs", ArrayFieldDecompMeta(TypeSpec("vector"), 16)},
+               {"speech-tunings", ArrayFieldDecompMeta(TypeSpec("bot-speech-tuning"), 16)}}},
+             {"ctyport-mine-layout",
+              {{"stored-handles",
+                ArrayFieldDecompMeta(TypeSpec("handle"),
+                                     8,
+                                     ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
+             {"deschase-path", {{"node", ArrayFieldDecompMeta(TypeSpec("deschase-node"), 32)}}},
+             {"tpath-info",
+              // TODO - should be able to just decompile the `anims` field
+              {{"anim1", ArrayFieldDecompMeta(TypeSpec("tpath-control-frame"), 16)},
+               {"anim2", ArrayFieldDecompMeta(TypeSpec("tpath-control-frame"), 16)},
+               {"anim3", ArrayFieldDecompMeta(TypeSpec("tpath-control-frame"), 16)}}},
+             {"blow-tower-path",
+              {{"pts", ArrayFieldDecompMeta(TypeSpec("vector"), 16)},
+               {"node-info", ArrayFieldDecompMeta(TypeSpec("blow-tower-node-info"), 32)}}},
+             {"trail-conn-hash",
+              {{"cell", ArrayFieldDecompMeta(TypeSpec("trail-conn-hash-cell"), 6)},
+               {"conn-ids", ArrayFieldDecompMeta(TypeSpec("uint16"),
+                                                 2,
+                                                 ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
+             {"trail-graph",
+              {{"node", ArrayFieldDecompMeta(TypeSpec("trail-node"), 20)},
+               {"conn", ArrayFieldDecompMeta(TypeSpec("trail-conn"), 8)},
+               {"conn-ids", ArrayFieldDecompMeta(TypeSpec("uint16"),
+                                                 2,
+                                                 ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)},
+               {"visgroup", ArrayFieldDecompMeta(TypeSpec("trail-conn-hash-cell"), 6)},
+               {"blocker", ArrayFieldDecompMeta(TypeSpec("trail-blocker"), 32)},
+               {"visnode-ids",
+                ArrayFieldDecompMeta(TypeSpec("uint16"),
+                                     2,
+                                     ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)},
+               {"cell-pov-bit-arrays",
+                ArrayFieldDecompMeta(TypeSpec("uint64"),
+                                     8,
+                                     ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
          }}};
 
 goos::Object decompile_structure(const TypeSpec& type,
@@ -968,16 +1080,6 @@ goos::Object decompile_structure(const TypeSpec& type,
   // some structures we want to decompile to fancy macros instead of a raw static definiton
   // temp hack!!
   if (use_fancy_macros && file) {
-    if (file->version == GameVersion::Jak1) {
-      if (type == TypeSpec("sp-field-init-spec")) {
-        ASSERT(file->version == GameVersion::Jak1);  // need to update enums
-        return decompile_sparticle_field_init(type, label, labels, words, ts, file, version);
-      }
-      if (type == TypeSpec("sparticle-group-item")) {
-        ASSERT(file->version == GameVersion::Jak1);  // need to update enums
-        return decompile_sparticle_group_item(type, label, labels, words, ts, file);
-      }
-    }
     if (type == TypeSpec("sound-spec")) {
       return decompile_sound_spec(type, label, labels, words, ts, file, version);
     }
@@ -1160,7 +1262,10 @@ goos::Object decompile_structure(const TypeSpec& type,
         auto len = field.array_size();
         auto stride = ts.get_size_in_type(field) / len;
         ASSERT(stride == field_type_info->get_size_in_memory());
-
+        if (field.type() == TypeSpec("int128") || field.type() == TypeSpec("uint128")) {
+          lg::die("Trying to decompile field {} of {} as an array of type {} not supported",
+                  field.name(), type_info->get_name(), field.type().print());
+        }
         field_defs_out.emplace_back(
             field.name(), decompile_value_array(field.type(), field_type_info, len, stride,
                                                 field_start, obj_words, ts));
@@ -1233,8 +1338,8 @@ goos::Object decompile_structure(const TypeSpec& type,
                     fmt::format("Failed to decompile: looking at field {} (from {}) with type {}",
                                 field.name(), type_info->get_name(), field.type().print()));
               }
-              field_defs_out.emplace_back(field.name(),
-                                          decompile_value(field.type(), bytes_out, ts));
+              field_defs_out.emplace_back(field.name(), decompile_value(field.type(), bytes_out, ts,
+                                                                        field.decomp_as_type()));
             }
           }
         }
@@ -1426,7 +1531,12 @@ goos::Object decompile_structure(const TypeSpec& type,
           // do nothing, the default is zero?
           field_defs_out.emplace_back(field.name(), pretty_print::to_symbol("0"));
         } else if (word.kind() == LinkedWord::SYM_PTR) {
-          if (word.symbol_name() == "#f" || word.symbol_name() == "#t") {
+          if (word.symbol_name() == "#f") {
+            field_defs_out.emplace_back(
+                field.name(), pretty_print::to_symbol(fmt::format("{}", word.symbol_name())));
+          } else if (!ts.tc(field.type(), TypeSpec("symbol"))) {
+            continue;
+          } else if (word.symbol_name() == "#t") {
             field_defs_out.emplace_back(
                 field.name(), pretty_print::to_symbol(fmt::format("{}", word.symbol_name())));
           } else {
@@ -1436,7 +1546,7 @@ goos::Object decompile_structure(const TypeSpec& type,
         } else if (word.kind() == LinkedWord::EMPTY_PTR) {
           field_defs_out.emplace_back(field.name(), pretty_print::to_symbol("'()"));
         } else if (word.kind() == LinkedWord::TYPE_PTR) {
-          if (field.type() != TypeSpec("type")) {
+          if (!ts.tc(field.type(), TypeSpec("type"))) {
             throw std::runtime_error(
                 fmt::format("Field {} in type {} offset {} had a reference to type {}, but the "
                             "type of the field is not type.",
@@ -1500,6 +1610,11 @@ goos::Object bitfield_defs_print(const TypeSpec& type,
       result.push_back(pretty_print::to_symbol(fmt::format(
           ":{} {}", def.field_name,
           bitfield_defs_print(def.nested_field->field_type, def.nested_field->fields).print())));
+    } else if (def.is_float) {
+      float f;
+      memcpy(&f, &def.value, 4);
+      result.push_back(
+          pretty_print::to_symbol(fmt::format(":{} {}", def.field_name, float_to_string(f, true))));
     } else {
       result.push_back(
           pretty_print::to_symbol(fmt::format(":{} #x{:x}", def.field_name, def.value)));
@@ -1510,7 +1625,8 @@ goos::Object bitfield_defs_print(const TypeSpec& type,
 
 goos::Object decompile_value(const TypeSpec& type,
                              const std::vector<u8>& bytes,
-                             const TypeSystem& ts) {
+                             const TypeSystem& ts,
+                             const std::optional<TypeSpec> decomp_as_type) {
   auto as_enum = ts.try_enum_lookup(type);
   if (as_enum) {
     ASSERT((int)bytes.size() == as_enum->get_load_size());
@@ -1559,93 +1675,107 @@ goos::Object decompile_value(const TypeSpec& type,
     }
   }
 
+  const auto& output_type = decomp_as_type ? *decomp_as_type : type;
   // try as common integer types:
+  auto print_int = [](s64 val, bool is_signed, const TypeSpec& ts, s64 hex_cutoff = 100) {
+    if (ts == TypeSpec("seconds") || ts == TypeSpec("time-frame")) {
+      return pretty_print::to_symbol(
+          fmt::format("(seconds {})", fixed_point_to_string(val, TICKS_PER_SECOND)));
+    } else if (!is_signed || val > hex_cutoff) {
+      return pretty_print::to_symbol(fmt::format("#x{:x}", u64(val)));
+    } else {
+      return pretty_print::to_symbol(fmt::format("{}", val));
+    }
+  };
+  auto print_float = [](double val, const TypeSpec& ts) {
+    if (ts == TypeSpec("meters")) {
+      double meters = val / METER_LENGTH;
+      auto rep = pretty_print::float_representation(meters);
+      if (rep.print().find("the-as") != std::string::npos) {
+        return rep;
+      } else {
+        return pretty_print::to_symbol(fmt::format("(meters {})", meters_to_string(val)));
+      }
+    } else if (ts == TypeSpec("degrees")) {
+      double degrees = val / DEGREES_LENGTH;
+      auto rep = pretty_print::float_representation(degrees);
+      if (rep.print().find("the-as") != std::string::npos) {
+        return rep;
+      } else {
+        return pretty_print::to_symbol(fmt::format("(degrees {})", degrees_to_string(val)));
+      }
+    } else if (ts == TypeSpec("fsec")) {
+      double seconds = val / TICKS_PER_SECOND;
+      auto rep = pretty_print::float_representation(seconds);
+      if (rep.print().find("the-as") != std::string::npos) {
+        return rep;
+      } else {
+        return pretty_print::to_symbol(fmt::format("(fsec {})", float_to_string(seconds, false)));
+      }
+    } else {
+      return pretty_print::float_representation(val);
+    }
+  };
   if (ts.tc(TypeSpec("uint32"), type)) {
     ASSERT(bytes.size() == 4);
     u32 value;
     memcpy(&value, bytes.data(), 4);
-    return pretty_print::to_symbol(fmt::format("#x{:x}", u64(value)));
+    return print_int(value, false, output_type);
   } else if (ts.tc(TypeSpec("int32"), type)) {
     ASSERT(bytes.size() == 4);
     s32 value;
     memcpy(&value, bytes.data(), 4);
-    if (value > 100) {
-      return pretty_print::to_symbol(fmt::format("#x{:x}", value));
-    } else {
-      return pretty_print::to_symbol(fmt::format("{}", value));
-    }
+    return print_int(value, true, output_type);
   } else if (ts.tc(TypeSpec("uint16"), type)) {
     ASSERT(bytes.size() == 2);
     u16 value;
     memcpy(&value, bytes.data(), 2);
-    return pretty_print::to_symbol(fmt::format("#x{:x}", u64(value)));
+    return print_int(value, false, output_type);
   } else if (ts.tc(TypeSpec("int16"), type)) {
     ASSERT(bytes.size() == 2);
     s16 value;
     memcpy(&value, bytes.data(), 2);
-    if (value > 100) {
-      return pretty_print::to_symbol(fmt::format("#x{:x}", value));
-    } else {
-      return pretty_print::to_symbol(fmt::format("{}", value));
-    }
-  } else if (ts.tc(TypeSpec("int8"), type)) {
-    ASSERT(bytes.size() == 1);
-    s8 value;
-    memcpy(&value, bytes.data(), 1);
-    if (value > 5) {
-      return pretty_print::to_symbol(fmt::format("#x{:x}", value));
-    } else {
-      return pretty_print::to_symbol(fmt::format("{}", value));
-    }
-  } else if (type == TypeSpec("seconds") || type == TypeSpec("time-frame")) {
-    ASSERT(bytes.size() == 8);
-    s64 value;
-    memcpy(&value, bytes.data(), 8);
-
-    return pretty_print::to_symbol(
-        fmt::format("(seconds {})", fixed_point_to_string(value, TICKS_PER_SECOND)));
-  } else if (ts.tc(TypeSpec("uint64"), type)) {
-    ASSERT(bytes.size() == 8);
-    u64 value;
-    memcpy(&value, bytes.data(), 8);
-    return pretty_print::to_symbol(fmt::format("#x{:x}", value));
-  } else if (ts.tc(TypeSpec("int64"), type)) {
-    ASSERT(bytes.size() == 8);
-    s64 value;
-    memcpy(&value, bytes.data(), 8);
-    if (value > 100) {
-      return pretty_print::to_symbol(fmt::format("#x{:x}", value));
-    } else {
-      return pretty_print::to_symbol(fmt::format("{}", value));
-    }
-  } else if (type == TypeSpec("meters")) {
-    ASSERT(bytes.size() == 4);
-    float value;
-    memcpy(&value, bytes.data(), 4);
-    double meters = (double)value / METER_LENGTH;
-    auto rep = pretty_print::float_representation(meters);
-    if (rep.print().find("the-as") != std::string::npos) {
-      return rep;
-      // return pretty_print::build_list("the-as", "meters", rep);
-    } else {
-      return pretty_print::to_symbol(fmt::format("(meters {})", meters_to_string(value)));
-    }
-  } else if (type == TypeSpec("degrees")) {
-    ASSERT(bytes.size() == 4);
-    float value;
-    memcpy(&value, bytes.data(), 4);
-    double degrees = (double)value / DEGREES_LENGTH;
-    return pretty_print::build_list("degrees", pretty_print::float_representation(degrees));
-  } else if (ts.tc(TypeSpec("float"), type)) {
-    ASSERT(bytes.size() == 4);
-    float value;
-    memcpy(&value, bytes.data(), 4);
-    return pretty_print::float_representation(value);
+    return print_int(value, true, output_type);
   } else if (ts.tc(TypeSpec("uint8"), type)) {
     ASSERT(bytes.size() == 1);
     u8 value;
     memcpy(&value, bytes.data(), 1);
-    return pretty_print::to_symbol(fmt::format("#x{:x}", value));
+    return print_int(value, false, output_type);
+  } else if (ts.tc(TypeSpec("int8"), type)) {
+    ASSERT(bytes.size() == 1);
+    s8 value;
+    memcpy(&value, bytes.data(), 1);
+    return print_int(value, true, output_type);
+  } else if (type == TypeSpec("seconds") || type == TypeSpec("time-frame")) {
+    ASSERT(bytes.size() == 8);
+    s64 value;
+    memcpy(&value, bytes.data(), 8);
+    return print_int(value, false, output_type);
+  } else if (ts.tc(TypeSpec("uint64"), type)) {
+    ASSERT(bytes.size() == 8);
+    u64 value;
+    memcpy(&value, bytes.data(), 8);
+    return print_int(value, false, output_type);
+  } else if (ts.tc(TypeSpec("int64"), type)) {
+    ASSERT(bytes.size() == 8);
+    s64 value;
+    memcpy(&value, bytes.data(), 8);
+    return print_int(value, true, output_type);
+  } else if (type == TypeSpec("meters")) {
+    ASSERT(bytes.size() == 4);
+    float value;
+    memcpy(&value, bytes.data(), 4);
+    return print_float(value, output_type);
+  } else if (type == TypeSpec("degrees")) {
+    ASSERT(bytes.size() == 4);
+    float value;
+    memcpy(&value, bytes.data(), 4);
+    return print_float(value, output_type);
+  } else if (ts.tc(TypeSpec("float"), type)) {
+    ASSERT(bytes.size() == 4);
+    float value;
+    memcpy(&value, bytes.data(), 4);
+    return print_float(value, output_type);
   } else {
     throw std::runtime_error(fmt::format("decompile_value failed on a {}", type.print()));
   }
@@ -1667,7 +1797,8 @@ goos::Object decompile_boxed_array(const TypeSpec& type,
       throw std::runtime_error("Invalid basic in decompile_boxed_array");
     }
     // TODO - ideally this wouldn't be hard-coded
-    if (type_ptr.symbol_name() == "array" || type_ptr.symbol_name() == "texture-anim-array") {
+    if (type_ptr.symbol_name() == "array" || type_ptr.symbol_name() == "texture-anim-array" ||
+        type_ptr.symbol_name() == "progress-icon-array") {
       auto content_type_ptr_word_idx = type_ptr_word_idx + 3;
       auto& content_type_ptr = words.at(label.target_segment).at(content_type_ptr_word_idx);
       if (content_type_ptr.kind() != LinkedWord::TYPE_PTR) {
@@ -1726,7 +1857,7 @@ goos::Object decompile_boxed_array(const TypeSpec& type,
         const auto& elt_label = labels.at(word.label_id());
         if (content_type == TypeSpec("object")) {
           // if there is a type hint for the label, no need to guess!
-          if (file->label_db->label_exists_by_name(elt_label.name)) {
+          if (file->label_db->label_info_known_by_name(elt_label.name)) {
             result.push_back(decompile_at_label_with_hint(file->label_db->lookup(elt_label.name),
                                                           elt_label, labels, words, ts, file,
                                                           version));
@@ -2027,9 +2158,10 @@ std::vector<BitFieldConstantDef> decompile_bitfield_from_int(const TypeSpec& typ
   return *try_decompile_bitfield_from_int(type, ts, value, true, {});
 }
 
-std::vector<std::string> decompile_bitfield_enum_from_int(const TypeSpec& type,
-                                                          const TypeSystem& ts,
-                                                          u64 value) {
+std::optional<std::vector<std::string>> try_decompile_bitfield_enum_from_int(const TypeSpec& type,
+                                                                             const TypeSystem& ts,
+                                                                             u64 value,
+                                                                             bool require_success) {
   u64 reconstructed = 0;
   std::vector<std::string> result;
   auto type_info = ts.try_enum_lookup(type.base_type());
@@ -2065,10 +2197,14 @@ std::vector<std::string> decompile_bitfield_enum_from_int(const TypeSpec& type,
   }
 
   if (reconstructed != value) {
-    throw std::runtime_error(fmt::format(
-        "Failed to decompile bitfield enum {}. Original value is 0x{:x} but we could only "
-        "make 0x{:x} using the available fields.",
-        type.print(), value, reconstructed));
+    if (require_success) {
+      throw std::runtime_error(fmt::format(
+          "Failed to decompile bitfield enum {}. Original value is 0x{:x} but we could only "
+          "make 0x{:x} using the available fields.",
+          type.print(), value, reconstructed));
+    } else {
+      return std::nullopt;
+    }
   }
 
   if (bit_count == (int)result.size()) {
@@ -2084,6 +2220,14 @@ std::vector<std::string> decompile_bitfield_enum_from_int(const TypeSpec& type,
   }
 
   return result;
+}
+
+std::vector<std::string> decompile_bitfield_enum_from_int(const TypeSpec& type,
+                                                          const TypeSystem& ts,
+                                                          u64 value) {
+  auto ret = try_decompile_bitfield_enum_from_int(type, ts, value, true);
+  ASSERT(ret.has_value());
+  return *ret;
 }
 
 std::string decompile_int_enum_from_int(const TypeSpec& type, const TypeSystem& ts, u64 value) {

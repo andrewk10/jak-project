@@ -1,16 +1,23 @@
 #pragma once
 #include "game/graphics/opengl_renderer/BucketRenderer.h"
 
-class Merc2 : public BucketRenderer {
- public:
-  Merc2(const std::string& name, int my_id);
-  ~Merc2();
-  void draw_debug_window() override;
-  void init_shaders(ShaderLibrary& shaders) override;
-  void render(DmaFollower& dma, SharedRenderState* render_state, ScopedProfilerNode& prof) override;
+struct MercDebugStats {
+  int num_models = 0;
+  int num_missing_models = 0;
+  int num_chains = 0;
+  int num_effects = 0;
+  int num_predicted_draws = 0;
+  int num_predicted_tris = 0;
+  int num_bones_uploaded = 0;
+  int num_lights = 0;
+  int num_draw_flush = 0;
 
- private:
-  bool m_debug_mode = false;
+  int num_envmap_effects = 0;
+  int num_envmap_tris = 0;
+
+  int num_upload_bytes = 0;
+  int num_uploads = 0;
+
   struct DrawDebug {
     DrawMode mode;
     int num_tris;
@@ -25,9 +32,25 @@ class Merc2 : public BucketRenderer {
     std::string level;
     std::vector<EffectDebug> effects;
   };
-  struct {
-    std::vector<ModelDebug> model_list;
-  } m_debug;
+
+  std::vector<ModelDebug> model_list;
+
+  bool collect_debug_model_list = false;
+};
+
+class Merc2 {
+ public:
+  Merc2(ShaderLibrary& shaders, const std::vector<GLuint>* anim_slot_array);
+  ~Merc2();
+  void draw_debug_window(MercDebugStats* stats);
+  void render(DmaFollower& dma,
+              SharedRenderState* render_state,
+              ScopedProfilerNode& prof,
+              MercDebugStats* stats);
+  static constexpr int kMaxBlerc = 40;
+
+ private:
+  const std::vector<GLuint>* m_anim_slot_array;
   enum MercDataMemory {
     LOW_MEMORY = 0,
     BUFFER_BASE = 442,
@@ -46,11 +69,11 @@ class Merc2 : public BucketRenderer {
 
   struct VuLights {
     math::Vector3f direction0;
-    u32 w0;
+    u32 w0;  // 12
     math::Vector3f direction1;
-    u32 w1;
+    u32 w1;  // 28
     math::Vector3f direction2;
-    u32 w2;
+    u32 w2;  // 44
     math::Vector4f color0;
     math::Vector4f color1;
     math::Vector4f color2;
@@ -59,7 +82,8 @@ class Merc2 : public BucketRenderer {
 
   void handle_pc_model(const DmaTransfer& setup,
                        SharedRenderState* render_state,
-                       ScopedProfilerNode& prof);
+                       ScopedProfilerNode& prof,
+                       MercDebugStats* stats);
   u32 alloc_lights(const VuLights& lights);
 
   struct ModBuffers {
@@ -86,7 +110,7 @@ class Merc2 : public BucketRenderer {
   static constexpr int MAX_SHADER_BONE_VECTORS = 1024 * 32;  // ??
 
   static constexpr int MAX_LEVELS = 3;
-  static constexpr int MAX_DRAWS_PER_LEVEL = 2048;
+  static constexpr int MAX_DRAWS_PER_LEVEL = 2048 * 2;
   static constexpr int MAX_ENVMAP_DRAWS_PER_LEVEL = MAX_DRAWS_PER_LEVEL;
 
   math::Vector4f m_shader_bone_vector_buffer[MAX_SHADER_BONE_VECTORS];
@@ -117,10 +141,14 @@ class Merc2 : public BucketRenderer {
 
   void init_shader_common(Shader& shader, Uniforms* uniforms, bool include_lights);
   void handle_setup_dma(DmaFollower& dma, SharedRenderState* render_state);
-  void handle_all_dma(DmaFollower& dma, SharedRenderState* render_state, ScopedProfilerNode& prof);
+  void handle_all_dma(DmaFollower& dma,
+                      SharedRenderState* render_state,
+                      ScopedProfilerNode& prof,
+                      MercDebugStats* stats);
   void handle_merc_chain(DmaFollower& dma,
                          SharedRenderState* render_state,
-                         ScopedProfilerNode& prof);
+                         ScopedProfilerNode& prof,
+                         MercDebugStats* stats);
 
   void switch_to_merc2(SharedRenderState* render_state);
   void switch_to_emerc(SharedRenderState* render_state);
@@ -138,6 +166,7 @@ class Merc2 : public BucketRenderer {
   struct UnpackTempVtx {
     float pos[4];
     float nrm[4];
+    float uv[2];
   };
   std::vector<UnpackTempVtx> m_mod_vtx_unpack_temp;
 
@@ -145,40 +174,26 @@ class Merc2 : public BucketRenderer {
 
   GLuint m_bones_buffer;
 
-  struct Stats {
-    int num_models = 0;
-    int num_missing_models = 0;
-    int num_chains = 0;
-    int num_effects = 0;
-    int num_predicted_draws = 0;
-    int num_predicted_tris = 0;
-    int num_bones_uploaded = 0;
-    int num_lights = 0;
-    int num_draw_flush = 0;
-
-    int num_envmap_effects = 0;
-    int num_envmap_tris = 0;
-
-    int num_upload_bytes = 0;
-    int num_uploads = 0;
-  } m_stats;
-
   enum DrawFlags {
     IGNORE_ALPHA = 1,
     MOD_VTX = 2,
+    NO_TEXTURE = 4,
   };
 
   struct Draw {
     u32 first_index;
     u32 index_count;
     DrawMode mode;
-    u32 texture;
+    s32 texture;
     u32 num_triangles;
     u16 first_bone;
     u16 light_idx;
     u8 flags;
     ModBuffers mod_vtx_buffer;
     u8 fade[4];
+    // no strip hack for custom models
+    u8 no_strip;
+    u64 hash;
   };
 
   struct LevelDrawBucket {
@@ -194,18 +209,25 @@ class Merc2 : public BucketRenderer {
       next_free_envmap_draw = 0;
     }
   };
-  Draw* alloc_normal_draw(const tfrag3::MercDraw& mdraw,
-                          bool ignore_alpha,
-                          LevelDrawBucket* lev_bucket,
-                          u32 first_bone,
-                          u32 lights);
+
+  struct DrawArgs {
+    LevelDrawBucket* lev_bucket;
+    const u8* fade;
+    bool jak1_water_mode;
+    bool ignore_alpha;
+    bool disable_fog;
+    bool no_texture;
+    u64 hash;
+    u32 lights;
+    u32 first_bone;
+  };
+
+  Draw* alloc_normal_draw(const tfrag3::MercDraw& mdraw, const DrawArgs& args);
+
   Draw* try_alloc_envmap_draw(const tfrag3::MercDraw& mdraw,
                               const DrawMode& envmap_mode,
                               u32 envmap_texture,
-                              LevelDrawBucket* lev_bucket,
-                              const u8* fade,
-                              u32 first_bone,
-                              u32 lights);
+                              const DrawArgs& args);
 
   void do_draws(const Draw* draw_array,
                 const LevelData* lev,
@@ -224,5 +246,20 @@ class Merc2 : public BucketRenderer {
   u32 m_next_free_bone_vector = 0;
   size_t m_opengl_buffer_alignment = 0;
 
-  void flush_draw_buckets(SharedRenderState* render_state, ScopedProfilerNode& prof);
+  void flush_draw_buckets(SharedRenderState* render_state,
+                          ScopedProfilerNode& prof,
+                          MercDebugStats* stats);
+  void model_mod_draws(int num_effects,
+                       const tfrag3::MercModel* model,
+                       const LevelData* lev,
+                       const u8* input_data,
+                       const DmaTransfer& setup,
+                       ModBuffers* mod_opengl_buffers,
+                       MercDebugStats* stats);
+  void model_mod_blerc_draws(int num_effects,
+                             const tfrag3::MercModel* model,
+                             const LevelData* lev,
+                             ModBuffers* mod_opengl_buffers,
+                             const float* blerc_weights,
+                             MercDebugStats* stats);
 };

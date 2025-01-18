@@ -5,6 +5,13 @@
 ;; name in dgo: display
 ;; dgos: ENGINE, GAME
 
+;(defconstant DMA_BUFFER_GLOBAL_SIZE (* 1280 1024)) ;; 1280K
+(defconstant DMA_BUFFER_GLOBAL_SIZE (* 1280 1024 PROCESS_HEAP_MULT)) ;; expand based on actor heap expansion
+;(defconstant DMA_BUFFER_DEBUG_SIZE (* 8 1024 1024)) ;; 8M
+(defconstant DMA_BUFFER_DEBUG_SIZE (* 12 1024 1024)) ;; expand to 12M because we can
+
+(defconstant DISPLAY_FPS_RATIO (/ (-> *display* time-factor) 5.0))
+
 ;; DECOMP BEGINS
 
 (defun get-current-time ()
@@ -17,23 +24,27 @@
   (-> *display* base-clock integral-frame-counter)
   )
 
-(defmethod set-time-ratios display ((obj display) (arg0 float))
+(defmethod set-time-ratios ((this display) (arg0 float))
   "Set the 'dog ratio'. This should be 1 when the game is running at full speed.
    Larger dog ratio means slower."
 
   ;; cap ratio if we're slower than 4x
-  (set! (-> obj dog-ratio) (fmin 4.0 arg0))
+  (set! (-> this dog-ratio) (fmin 4.0 arg0))
 
   ;; set the time per vsync.
   (case (get-video-mode)
     (('pal)
-     (set! (-> obj time-factor) 6.0)
+     (set! (-> this time-factor) 6.0)
+     )
+    ;; og:preserve-this added custom video mode for high fps
+    (('custom)
+     (set! (-> this time-factor) (/ 300.0 (-> *pc-settings* target-fps)))
      )
     (else
-      (set! (-> obj time-factor) 5.0)
+      (set! (-> this time-factor) 5.0)
       )
     )
-  (-> obj dog-ratio)
+  (-> this dog-ratio)
   )
 
 (defun set-display ((arg0 display))
@@ -69,11 +80,11 @@
   (when (zero? (-> arg0 frames 0 calc-buf))
     (set! (-> arg0 frames 0 calc-buf) (new 'global 'dma-buffer 10000))
     (set! (-> arg0 frames 1 calc-buf) (new 'global 'dma-buffer 10000))
-    (set! (-> arg0 frames 0 global-buf) (new 'global 'dma-buffer #x140000))
-    (set! (-> arg0 frames 1 global-buf) (new 'global 'dma-buffer #x140000))
+    (set! (-> arg0 frames 0 global-buf) (new 'global 'dma-buffer DMA_BUFFER_GLOBAL_SIZE))
+    (set! (-> arg0 frames 1 global-buf) (new 'global 'dma-buffer DMA_BUFFER_GLOBAL_SIZE))
     (when *debug-segment*
-      (set! (-> arg0 frames 0 debug-buf) (new 'debug 'dma-buffer #x800000))
-      (set! (-> arg0 frames 1 debug-buf) (new 'debug 'dma-buffer #x800000))
+      (set! (-> arg0 frames 0 debug-buf) (new 'debug 'dma-buffer DMA_BUFFER_DEBUG_SIZE))
+      (set! (-> arg0 frames 1 debug-buf) (new 'debug 'dma-buffer DMA_BUFFER_DEBUG_SIZE))
       )
     )
   arg0
@@ -83,6 +94,7 @@
   (new 'global 'font-context *font-default-matrix* 0 0 0.0 (font-color default) (font-flags shadow kerning))
   )
 
+;; WARN: Return type mismatch pointer vs none.
 (defun draw-sprite2d-xy ((arg0 dma-buffer) (arg1 int) (arg2 int) (arg3 int) (arg4 int) (arg5 rgba))
   "Draw a sprite primitive with the given color and dimensions."
   (let* ((t2-1 (new 'stack 'draw-context arg1 arg2 arg3 arg4 arg5))
@@ -140,6 +152,7 @@
   (none)
   )
 
+;; WARN: Return type mismatch pointer vs none.
 (defun draw-sprite2d-xy-absolute ((arg0 dma-buffer) (arg1 int) (arg2 int) (arg3 int) (arg4 int) (arg5 rgba))
   "Draw a sprite primitive, setting the gs-xzyf register to exactly the values specified (no offset/clamp)"
   (let ((t2-0 (+ arg1 1792))
@@ -193,6 +206,7 @@
   (none)
   )
 
+;; WARN: Return type mismatch pointer vs none.
 (defun draw-quad2d ((arg0 dma-buffer) (arg1 draw-context))
   "Draw a quad that fills the entire context"
   (let ((a3-1 (max 1792 (min 2304 (+ (-> arg1 orgx) 1792))))
@@ -334,7 +348,7 @@
        ;     addiu a2, r0, 0
        ;     beq r0, r0, L45
        ;     sll r0, r0, 0
-       (dotimes (i 327)
+       (dotimes (i (enum-length bucket-id))
          ; B3:
          ; L44:
          ;     dsll a3, a2, 4
@@ -367,7 +381,7 @@
        (set! (-> prof data 0 start-time) 0) ;; why do it again...
        ;     addiu a2, r0, 327
        ;     sh a2, 0(v1)
-       (set! (-> prof count) 327)
+       (set! (-> prof count) (enum-length bucket-id))
        ;     beq r0, r0, L47
        ;     sll r0, r0, 0
        ) ;; end (>= mark last-index)
@@ -503,7 +517,7 @@
 
   ;     lw v1, *display*(s7)
   ;     sd v0, 108(v1)
-  (set! (-> *display* vblank-start-time 1) (the-as time-frame (timer-count TIMER1_BANK))) ;; not really a time-frame.
+  (set! (-> *display* vblank-start-time 1) (the-as int (timer-count TIMER1_BANK))) ;; not really a time-frame.
   ;     addiu v0, r0, 0
   0
   ;     ld ra, 0(sp)
@@ -519,139 +533,53 @@
 
 (defun set-display-gs-state ((arg0 dma-buffer) (arg1 int) (arg2 int) (arg3 int) (arg4 int) (arg5 int))
   (let ((t2-0 (/ (+ arg2 63) 64)))
-    (let* ((v1-1 arg0)
-           (t3-0 (the-as object (-> v1-1 base)))
-           )
-      (set! (-> (the-as dma-packet t3-0) dma) (new 'static 'dma-tag :qwc #x8 :id (dma-tag-id cnt)))
-      (set! (-> (the-as dma-packet t3-0) vif0) (new 'static 'vif-tag :cmd (vif-cmd flusha) :msk #x1))
-      (set! (-> (the-as dma-packet t3-0) vif1) (new 'static 'vif-tag :imm #x8 :cmd (vif-cmd direct) :msk #x1))
-      (set! (-> v1-1 base) (&+ (the-as pointer t3-0) 16))
-      )
-    (let* ((v1-2 arg0)
-           (t3-2 (the-as object (-> v1-2 base)))
-           )
-      (set! (-> (the-as gs-gif-tag t3-2) tag) (new 'static 'gif-tag64 :nloop #x1 :eop #x1 :nreg #x7))
-      (set! (-> (the-as gs-gif-tag t3-2) regs) GIF_REGS_ALL_AD)
-      (set! (-> v1-2 base) (&+ (the-as pointer t3-2) 16))
-      )
-    (let* ((v1-3 arg0)
-           (t3-4 (-> v1-3 base))
-           )
-      (set! (-> (the-as (pointer gs-scissor) t3-4) 0)
-            (new 'static 'gs-scissor :scax1 (+ arg2 -1) :scay1 (+ arg3 -1))
-            )
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 1) (gs-reg64 scissor-1))
-      (set! (-> (the-as (pointer gs-xy-offset) t3-4) 2) (new 'static 'gs-xy-offset))
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 3) (gs-reg64 xyoffset-1))
-      (set! (-> (the-as (pointer gs-frame) t3-4) 4)
-            (new 'static 'gs-frame :fbp arg1 :fbw t2-0 :psm arg5 :fbmsk arg4)
-            )
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 5) (gs-reg64 frame-1))
-      (set! (-> (the-as (pointer gs-test) t3-4) 6) (new 'static 'gs-test :zte #x1 :ztst (gs-ztest always)))
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 7) (gs-reg64 test-1))
-      (set! (-> (the-as (pointer gs-texa) t3-4) 8) (new 'static 'gs-texa :ta0 #x80 :ta1 #x80))
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 9) (gs-reg64 texa))
-      (set! (-> (the-as (pointer gs-zbuf) t3-4) 10) (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24) :zmsk #x1))
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 11) (gs-reg64 zbuf-1))
-      (set! (-> (the-as (pointer uint64) t3-4) 12) (the-as uint 0))
-      (set! (-> (the-as (pointer gs-reg64) t3-4) 13) (gs-reg64 texflush))
-      (set! (-> v1-3 base) (&+ t3-4 112))
-      )
+    (dma-buffer-add-gs-set-flusha arg0
+                                  (scissor-1 (new 'static 'gs-scissor :scax1 (+ arg2 -1) :scay1 (+ arg3 -1)))
+                                  (xyoffset-1 (new 'static 'gs-xy-offset))
+                                  (frame-1 (new 'static 'gs-frame :fbp arg1 :fbw t2-0 :psm arg5 :fbmsk arg4))
+                                  (test-1 (new 'static 'gs-test :zte #x1 :ztst (gs-ztest always)))
+                                  (texa (new 'static 'gs-texa :ta0 #x80 :ta1 #x80))
+                                  (zbuf-1 (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24) :zmsk #x1))
+                                  (texflush 0)
+                                  )
     )
   arg0
   )
 
 (defun set-display-gs-state-offset ((arg0 dma-buffer) (arg1 int) (arg2 int) (arg3 int) (arg4 int) (arg5 int) (arg6 int) (arg7 int))
   (let ((t4-0 (/ (+ arg2 63) 64)))
-    (let* ((v1-1 arg0)
-           (t5-0 (the-as object (-> v1-1 base)))
-           )
-      (set! (-> (the-as dma-packet t5-0) dma) (new 'static 'dma-tag :qwc #x8 :id (dma-tag-id cnt)))
-      (set! (-> (the-as dma-packet t5-0) vif0) (new 'static 'vif-tag :cmd (vif-cmd flusha) :msk #x1))
-      (set! (-> (the-as dma-packet t5-0) vif1) (new 'static 'vif-tag :imm #x8 :cmd (vif-cmd direct) :msk #x1))
-      (set! (-> v1-1 base) (&+ (the-as pointer t5-0) 16))
-      )
-    (let* ((v1-2 arg0)
-           (t5-2 (the-as object (-> v1-2 base)))
-           )
-      (set! (-> (the-as gs-gif-tag t5-2) tag) (new 'static 'gif-tag64 :nloop #x1 :eop #x1 :nreg #x7))
-      (set! (-> (the-as gs-gif-tag t5-2) regs) GIF_REGS_ALL_AD)
-      (set! (-> v1-2 base) (&+ (the-as pointer t5-2) 16))
-      )
-    (let* ((v1-3 arg0)
-           (t5-4 (-> v1-3 base))
-           )
-      (set! (-> (the-as (pointer gs-scissor) t5-4) 0)
-            (new 'static 'gs-scissor :scax1 (+ arg2 -1) :scay1 (+ arg3 -1))
-            )
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 1) (gs-reg64 scissor-1))
-      (set! (-> (the-as (pointer gs-xy-offset) t5-4) 2)
-            (new 'static 'gs-xy-offset :ofx (* arg6 16) :ofy (* arg7 16))
-            )
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 3) (gs-reg64 xyoffset-1))
-      (set! (-> (the-as (pointer gs-frame) t5-4) 4)
-            (new 'static 'gs-frame :fbp arg1 :fbw t4-0 :psm arg5 :fbmsk arg4)
-            )
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 5) (gs-reg64 frame-1))
-      (set! (-> (the-as (pointer gs-test) t5-4) 6) (new 'static 'gs-test :zte #x1 :ztst (gs-ztest always)))
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 7) (gs-reg64 test-1))
-      (set! (-> (the-as (pointer gs-texa) t5-4) 8) (new 'static 'gs-texa :ta0 #x80 :ta1 #x80))
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 9) (gs-reg64 texa))
-      (set! (-> (the-as (pointer gs-zbuf) t5-4) 10) (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24) :zmsk #x1))
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 11) (gs-reg64 zbuf-1))
-      (set! (-> (the-as (pointer uint64) t5-4) 12) (the-as uint 0))
-      (set! (-> (the-as (pointer gs-reg64) t5-4) 13) (gs-reg64 texflush))
-      (set! (-> v1-3 base) (&+ t5-4 112))
-      )
+    (dma-buffer-add-gs-set-flusha arg0
+                                  (scissor-1 (new 'static 'gs-scissor :scax1 (+ arg2 -1) :scay1 (+ arg3 -1)))
+                                  (xyoffset-1 (new 'static 'gs-xy-offset :ofx (* arg6 16) :ofy (* arg7 16)))
+                                  (frame-1 (new 'static 'gs-frame :fbp arg1 :fbw t4-0 :psm arg5 :fbmsk arg4))
+                                  (test-1 (new 'static 'gs-test :zte #x1 :ztst (gs-ztest always)))
+                                  (texa (new 'static 'gs-texa :ta0 #x80 :ta1 #x80))
+                                  (zbuf-1 (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24) :zmsk #x1))
+                                  (texflush 0)
+                                  )
     )
   arg0
   )
 
 (defun reset-display-gs-state ((arg0 display) (arg1 dma-buffer))
-  (let* ((v1-0 arg1)
-         (a2-1 (the-as object (-> v1-0 base)))
-         )
-    (set! (-> (the-as dma-packet a2-1) dma) (new 'static 'dma-tag :qwc #x8 :id (dma-tag-id cnt)))
-    (set! (-> (the-as dma-packet a2-1) vif0) (new 'static 'vif-tag :cmd (vif-cmd flusha) :msk #x1))
-    (set! (-> (the-as dma-packet a2-1) vif1) (new 'static 'vif-tag :imm #x8 :cmd (vif-cmd direct) :msk #x1))
-    (set! (-> v1-0 base) (&+ (the-as pointer a2-1) 16))
-    )
-  (let* ((v1-1 arg1)
-         (a2-3 (the-as object (-> v1-1 base)))
-         )
-    (set! (-> (the-as gs-gif-tag a2-3) tag) (new 'static 'gif-tag64 :nloop #x1 :eop #x1 :nreg #x7))
-    (set! (-> (the-as gs-gif-tag a2-3) regs) GIF_REGS_ALL_AD)
-    (set! (-> v1-1 base) (&+ (the-as pointer a2-3) 16))
-    )
-  (let* ((v1-2 arg1)
-         (a1-1 (-> v1-2 base))
-         )
-    (set! (-> (the-as (pointer gs-scissor) a1-1) 0) (new 'static 'gs-scissor :scax1 #x1ff :scay1 #x19f))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 1) (gs-reg64 scissor-1))
-    (set! (-> (the-as (pointer gs-xy-offset) a1-1) 2) (new 'static 'gs-xy-offset :ofx #x7000 :ofy #x7300))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 3) (gs-reg64 xyoffset-1))
-    (set! (-> (the-as (pointer gs-frame) a1-1) 4) (new 'static 'gs-frame :fbp #x198 :fbw #x8))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 5) (gs-reg64 frame-1))
-    (set! (-> (the-as (pointer gs-test) a1-1) 6) (new 'static 'gs-test :zte #x1 :ztst (gs-ztest greater-equal)))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 7) (gs-reg64 test-1))
-    (set! (-> (the-as (pointer gs-texa) a1-1) 8) (new 'static 'gs-texa :ta1 #x80))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 9) (gs-reg64 texa))
-    (set! (-> (the-as (pointer gs-zbuf) a1-1) 10) (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24)))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 11) (gs-reg64 zbuf-1))
-    (set! (-> (the-as (pointer uint64) a1-1) 12) (the-as uint 0))
-    (set! (-> (the-as (pointer gs-reg64) a1-1) 13) (gs-reg64 texflush))
-    (set! (-> v1-2 base) (&+ a1-1 112))
-    )
+  (dma-buffer-add-gs-set-flusha arg1
+                                (scissor-1 (new 'static 'gs-scissor :scax1 #x1ff :scay1 #x19f))
+                                (xyoffset-1 (new 'static 'gs-xy-offset :ofx #x7000 :ofy #x7300))
+                                (frame-1 (new 'static 'gs-frame :fbp #x198 :fbw #x8))
+                                (test-1 (new 'static 'gs-test :zte #x1 :ztst (gs-ztest greater-equal)))
+                                (texa (new 'static 'gs-texa :ta1 #x80))
+                                (zbuf-1 (new 'static 'gs-zbuf :zbp #x130 :psm (gs-psm ct24)))
+                                (texflush 0)
+                                )
   arg0
   )
 
 (kmemopen global "dma-buffers")
 
 (define *vu0-dma-list* (new 'global 'dma-buffer 4096))
+
 (define *display* (new 'global 'display 0 512 416 2 49))
+
 (allocate-dma-buffers *display*)
+
 (kmemclose)
-
-
-
-

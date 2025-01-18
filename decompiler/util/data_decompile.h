@@ -5,7 +5,7 @@
 #include "common/goos/Object.h"
 #include "common/type_system/TypeSpec.h"
 #include "common/type_system/TypeSystem.h"
-#include "common/versions.h"
+#include "common/versions/versions.h"
 
 #include "decompiler/Disasm/DecompilerLabel.h"
 #include "decompiler/IR2/LabelDB.h"
@@ -66,7 +66,8 @@ goos::Object decompile_boxed_array(const TypeSpec& type,
                                    GameVersion version);
 goos::Object decompile_value(const TypeSpec& type,
                              const std::vector<u8>& bytes,
-                             const TypeSystem& ts);
+                             const TypeSystem& ts,
+                             const std::optional<TypeSpec> decomp_as_type = std::nullopt);
 goos::Object decompile_value_array(const TypeSpec& elt_type,
                                    const Type* elt_type_info,
                                    int length,
@@ -106,7 +107,10 @@ T extract_bitfield(T input, int start_bit, int size) {
 std::vector<BitFieldConstantDef> decompile_bitfield_from_int(const TypeSpec& type,
                                                              const TypeSystem& ts,
                                                              u64 value);
-
+std::optional<std::vector<std::string>> try_decompile_bitfield_enum_from_int(const TypeSpec& type,
+                                                                             const TypeSystem& ts,
+                                                                             u64 value,
+                                                                             bool require_success);
 std::optional<std::vector<BitFieldConstantDef>> try_decompile_bitfield_from_int(
     const TypeSpec& type,
     const TypeSystem& ts,

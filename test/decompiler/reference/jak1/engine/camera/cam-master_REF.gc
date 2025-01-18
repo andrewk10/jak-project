@@ -3,32 +3,29 @@
 
 ;; definition of type camera-master-bank
 (deftype camera-master-bank (basic)
-  ((onscreen-head-height            meters  :offset-assert   4)
-   (onscreen-foot-height            meters  :offset-assert   8)
-   (target-height                   meters  :offset-assert  12)
-   (up-move-to-pitch-ratio-in-air   float   :offset-assert  16)
-   (down-move-to-pitch-ratio-in-air float   :offset-assert  20)
-   (up-move-to-pitch-on-ground      float   :offset-assert  24)
-   (down-move-to-pitch-on-ground    float   :offset-assert  28)
-   (pitch-off-blend                 float   :offset-assert  32)
+  ((onscreen-head-height             meters)
+   (onscreen-foot-height             meters)
+   (target-height                    meters)
+   (up-move-to-pitch-ratio-in-air    float)
+   (down-move-to-pitch-ratio-in-air  float)
+   (up-move-to-pitch-on-ground       float)
+   (down-move-to-pitch-on-ground     float)
+   (pitch-off-blend                  float)
    )
-  :method-count-assert 9
-  :size-assert         #x24
-  :flag-assert         #x900000024
   )
 
 ;; definition for method 3 of type camera-master-bank
-(defmethod inspect camera-master-bank ((obj camera-master-bank))
-  (format #t "[~8x] ~A~%" obj (-> obj type))
-  (format #t "~Tonscreen-head-height: (meters ~m)~%" (-> obj onscreen-head-height))
-  (format #t "~Tonscreen-foot-height: (meters ~m)~%" (-> obj onscreen-foot-height))
-  (format #t "~Ttarget-height: (meters ~m)~%" (-> obj target-height))
-  (format #t "~Tup-move-to-pitch-ratio-in-air: ~f~%" (-> obj up-move-to-pitch-ratio-in-air))
-  (format #t "~Tdown-move-to-pitch-ratio-in-air: ~f~%" (-> obj down-move-to-pitch-ratio-in-air))
-  (format #t "~Tup-move-to-pitch-on-ground: ~f~%" (-> obj up-move-to-pitch-on-ground))
-  (format #t "~Tdown-move-to-pitch-on-ground: ~f~%" (-> obj down-move-to-pitch-on-ground))
-  (format #t "~Tpitch-off-blend: ~f~%" (-> obj pitch-off-blend))
-  obj
+(defmethod inspect ((this camera-master-bank))
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~Tonscreen-head-height: (meters ~m)~%" (-> this onscreen-head-height))
+  (format #t "~Tonscreen-foot-height: (meters ~m)~%" (-> this onscreen-foot-height))
+  (format #t "~Ttarget-height: (meters ~m)~%" (-> this target-height))
+  (format #t "~Tup-move-to-pitch-ratio-in-air: ~f~%" (-> this up-move-to-pitch-ratio-in-air))
+  (format #t "~Tdown-move-to-pitch-ratio-in-air: ~f~%" (-> this down-move-to-pitch-ratio-in-air))
+  (format #t "~Tup-move-to-pitch-on-ground: ~f~%" (-> this up-move-to-pitch-on-ground))
+  (format #t "~Tdown-move-to-pitch-on-ground: ~f~%" (-> this down-move-to-pitch-on-ground))
+  (format #t "~Tpitch-off-blend: ~f~%" (-> this pitch-off-blend))
+  this
   )
 
 ;; definition for symbol *CAMERA_MASTER-bank*, type camera-master-bank
@@ -73,7 +70,7 @@
   (set! (-> self target-height) (-> *CAMERA_MASTER-bank* target-height))
   (set! (-> self on-ground)
         (not (and (logtest? (-> *target* control unknown-surface00 flags) (surface-flags jump))
-                  (zero? (logand (-> *target* control status) (cshape-moving-flags onsurf)))
+                  (not (logtest? (-> *target* control status) (cshape-moving-flags onsurf)))
                   )
              )
         )
@@ -83,18 +80,18 @@
   (set! (-> self string-max target z) (-> self stringMaxLength))
   (set! (-> self string-push-z) (fmax (-> self string-min value z) (-> *CAMERA-bank* default-string-push-z)))
   (cond
-    ((>= (- (-> *display* base-frame-counter) (the-as time-frame (if *target*
-                                                                     (the-as int (-> *target* neck notice-time))
-                                                                     0
-                                                                     )
-                                                      )
-            )
-         (-> *CAMERA-bank* attack-timeout)
-         )
+    ((time-elapsed?
+       (the-as time-frame (if *target*
+                              (the-as int (-> *target* neck notice-time))
+                              0
+                              )
+               )
+       (-> *CAMERA-bank* attack-timeout)
+       )
      (set! (-> self being-attacked) #f)
      )
     (else
-      (set! (-> self attack-start) (-> *display* base-frame-counter))
+      (set-time! (-> self attack-start))
       (set! (-> self being-attacked) #t)
       (when (and (not (logtest? (-> self master-options) 64))
                  (or (!= (-> last-try-to-look-at-data horz) 0.0) (!= (-> last-try-to-look-at-data vert) 0.0))
@@ -107,7 +104,7 @@
     )
   (cond
     ((and (logtest? (-> *target* water flags) (water-flags wt12))
-          (zero? (logand (-> *target* water flags) (water-flags wt04)))
+          (not (logtest? (-> *target* water flags) (water-flags wt04)))
           )
      (set! (-> self under-water) 2)
      )
@@ -118,7 +115,7 @@
     )
   (let ((gp-1 (new 'stack-no-clear 'vector)))
     (vector--float*! gp-1 (-> self tpos-curr-adj) (-> self local-down) (-> self target-height))
-    (the-as symbol (TODO-RENAME-10 (-> self target-spline) gp-1))
+    (the-as symbol (tracking-spline-method-10 (-> self target-spline) gp-1))
     )
   )
 
@@ -207,20 +204,20 @@
   (set! (-> self under-water) 0)
   (let ((gp-1 (new 'stack-no-clear 'vector)))
     (vector--float*! gp-1 (-> self tpos-curr-adj) (-> self local-down) (-> self target-height))
-    (the-as symbol (TODO-RENAME-10 (-> self target-spline) gp-1))
+    (the-as symbol (tracking-spline-method-10 (-> self target-spline) gp-1))
     )
   )
 
 ;; definition for function master-track-target
 ;; INFO: Used lq/sq
-;; INFO: Return type mismatch none vs symbol.
+;; INFO: Return type mismatch object vs symbol.
 (defbehavior master-track-target camera-master ()
   (cond
     ((and (logtest? (-> self master-options) 2)
           (!= (-> self drawable-target) #f)
           (not (handle->process (-> self drawable-target)))
           )
-     (set! (-> self master-options) (logand -3 (-> self master-options)))
+     (logand! (-> self master-options) -3)
      (set! (-> self drawable-target) (the-as handle #f))
      )
     ((and (logtest? (-> self master-options) 2) (handle->process (-> self drawable-target)))
@@ -291,9 +288,9 @@
        )
      (let ((gp-1 (new 'stack-no-clear 'vector)))
        (vector--float*! gp-1 (-> self tpos-curr-adj) (-> self local-down) (-> self target-height))
-       (TODO-RENAME-17 (-> self target-spline) gp-1 2048.0 0.0 #f)
+       (tracking-spline-method-17 (-> self target-spline) gp-1 2048.0 0.0 #f)
        )
-     (TODO-RENAME-22 (-> self target-spline) 40960.0)
+     (tracking-spline-method-22 (-> self target-spline) 40960.0)
      )
     ((handle->process (-> self drawable-target))
      (logior! (-> self master-options) 2)
@@ -311,19 +308,19 @@
            (return (the-as symbol #f))
            )
        (cond
-         ((>= (- (-> *display* base-frame-counter) (the-as time-frame (if *target*
-                                                                          (the-as int (-> *target* neck notice-time))
-                                                                          0
-                                                                          )
-                                                           )
-                 )
-              (-> *CAMERA-bank* attack-timeout)
-              )
+         ((time-elapsed?
+            (the-as time-frame (if *target*
+                                   (the-as int (-> *target* neck notice-time))
+                                   0
+                                   )
+                    )
+            (-> *CAMERA-bank* attack-timeout)
+            )
           (set! (-> self being-attacked) #f)
           )
          (else
            (if (not (-> self being-attacked))
-               (set! (-> self attack-start) (-> *display* base-frame-counter))
+               (set-time! (-> self attack-start))
                )
            (set! (-> self being-attacked) #t)
            (when (and (not (logtest? (-> self master-options) 64))
@@ -337,7 +334,7 @@
          )
        (cond
          ((and (logtest? (-> *target* water flags) (water-flags wt12))
-               (zero? (logand (-> *target* water flags) (water-flags wt04)))
+               (not (logtest? (-> *target* water flags) (water-flags wt04)))
                )
           (set! (-> self under-water) 2)
           )
@@ -360,7 +357,7 @@
                (-> self ease-to)
                (parameter-ease-sin-clamp (-> self ease-t))
                )
-             (set! (-> self master-options) (logand -33 (-> self master-options)))
+             (logand! (-> self master-options) -33)
              )
             (else
               (vector-lerp!
@@ -377,7 +374,7 @@
            (set! (-> self tpos-curr quad) (-> (target-cam-pos) quad))
            )
          )
-       (when (logtest? (-> *target* control root-prim prim-core action) (collide-action ca-7))
+       (when (logtest? (-> *target* control root-prim prim-core action) (collide-action edgegrab-cam))
          (if *display-cam-los-debug*
              (format *stdcon* "ride edge~%")
              )
@@ -409,7 +406,7 @@
          )
        (set! (-> self on-ground)
              (not (and (logtest? (-> *target* control unknown-surface00 flags) (surface-flags jump))
-                       (zero? (logand (-> *target* control status) (cshape-moving-flags onsurf)))
+                       (not (logtest? (-> *target* control status) (cshape-moving-flags onsurf)))
                        )
                   )
              )
@@ -417,7 +414,7 @@
          0.0
          (cond
            ((and (and (logtest? (-> *target* control unknown-surface00 flags) (surface-flags jump))
-                      (zero? (logand (-> *target* control status) (cshape-moving-flags onsurf)))
+                      (not (logtest? (-> *target* control status) (cshape-moving-flags onsurf)))
                       )
                  (!= (-> *target* control unknown-surface00 name) 'launch-jump)
                  )
@@ -430,10 +427,10 @@
             (let ((f30-0 (vector-dot gp-6 (-> self local-down))))
               (vector--float*! gp-6 gp-6 (-> self local-down) f30-0)
               (if (< 0.0 f30-0)
-                  (set! (-> self upspeed) (* 0.5 (-> self upspeed)))
+                  (set! (-> self upspeed) (/ (-> self upspeed) 2))
                   )
               (vector+! (-> self tpos-tgt) (-> self tpos-tgt) gp-6)
-              (let ((f0-30 (* 0.05 f30-0)))
+              (let ((f0-30 (/ f30-0 20)))
                 (vector+float*! (-> self tpos-tgt) (-> self tpos-tgt) (-> self local-down) f0-30)
                 )
               )
@@ -516,9 +513,9 @@
                  )
              )
            )
-         (TODO-RENAME-17 (-> self target-spline) gp-7 2048.0 0.0 #f)
+         (tracking-spline-method-17 (-> self target-spline) gp-7 2048.0 0.0 #f)
          )
-       (the-as symbol (TODO-RENAME-22 (-> self target-spline) 40960.0))
+       (the-as symbol (tracking-spline-method-22 (-> self target-spline) 40960.0))
        )
       (*target*
         (logior! (-> self master-options) 2)
@@ -581,7 +578,7 @@
 (defbehavior master-unset-region camera-master ()
   (when (-> self cam-entity)
     (set! (-> self cam-entity) #f)
-    (set! (-> self master-options) (logand -65 (-> self master-options)))
+    (logand! (-> self master-options) -65)
     (set! (-> self stringMinHeight) (-> *CAMERA-bank* default-string-min-y))
     (set! (-> self stringMaxHeight) (-> *CAMERA-bank* default-string-max-y))
     (set! (-> self stringMinLength) (-> *CAMERA-bank* default-string-min-z))
@@ -653,13 +650,9 @@
 
 ;; definition for function master-switch-to-entity
 ;; INFO: Used lq/sq
-;; WARN: rewrite_to_get_var got a none typed variable. Is there unreachable code? [OP: 166]
-;; WARN: rewrite_to_get_var got a none typed variable. Is there unreachable code? [OP: 176]
-;; WARN: rewrite_to_get_var got a none typed variable. Is there unreachable code? [OP: 196]
-;; WARN: rewrite_to_get_var got a none typed variable. Is there unreachable code? [OP: 220]
 (defbehavior master-switch-to-entity camera-master ((arg0 entity))
   (local-vars
-    (v0-21 none)
+    (v0-21 object)
     (gp-0 (pointer process))
     (sv-16 res-tag)
     (sv-112 process)
@@ -797,7 +790,7 @@
      )
     ((and (logtest? (-> self master-options) 4)
           (not (-> self on-ground))
-          (or (not (-> self cam-entity)) (zero? (logand #x20000 (cam-slave-get-flags (-> self cam-entity) 'flags))))
+          (or (not (-> self cam-entity)) (not (logtest? #x20000 (cam-slave-get-flags (-> self cam-entity) 'flags))))
           )
      #f
      )
@@ -861,7 +854,6 @@
     (if (and (nonzero? camera-master-debug) *debug-segment*)
         (add-connection *debug-engine* self camera-master-debug self #f #f)
         )
-    (none)
     )
   :trans (behavior ()
     (when (not (paused?))
@@ -871,7 +863,6 @@
         )
       (cam-master-effect)
       )
-    (none)
     )
   :code (behavior ()
     (loop
@@ -916,27 +907,22 @@
           )
       (suspend)
       )
-    (none)
     )
   )
 
 ;; definition of type list-keeper
 (deftype list-keeper (process)
-  ((dummy float  :offset-assert 112)
+  ((dummy  float)
    )
-  :heap-base #x10
-  :method-count-assert 14
-  :size-assert         #x74
-  :flag-assert         #xe00100074
   )
 
 ;; definition for method 3 of type list-keeper
-(defmethod inspect list-keeper ((obj list-keeper))
+(defmethod inspect ((this list-keeper))
   (let ((t9-0 (method-of-type process inspect)))
-    (t9-0 obj)
+    (t9-0 this)
     )
-  (format #t "~T~Tdummy: ~f~%" (-> obj dummy))
-  obj
+  (format #t "~T~Tdummy: ~f~%" (-> this dummy))
+  this
   )
 
 ;; failed to figure out what this is:
@@ -946,7 +932,6 @@
       (change-to-last-brother self)
       (suspend)
       )
-    (none)
     )
   )
 
@@ -994,7 +979,7 @@
   (set! (-> self drawable-target) (the-as handle #f))
   (set! (-> self which-bone) 0)
   (let ((a1-3 (new-stack-vector0)))
-    (TODO-RENAME-10 (-> self target-spline) a1-3)
+    (tracking-spline-method-10 (-> self target-spline) a1-3)
     )
   (set! (-> self pov-handle) (the-as handle #f))
   (set! (-> self pov-bone) 0)

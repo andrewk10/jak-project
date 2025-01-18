@@ -13,6 +13,8 @@ class Shrub : public BucketRenderer {
  public:
   Shrub(const std::string& name, int my_id);
   ~Shrub();
+  void init_shaders(ShaderLibrary& shaders) override;
+
   bool setup_for_level(const std::string& level, SharedRenderState* render_state);
   void render_all_trees(const TfragRenderSettings& settings,
                         SharedRenderState* render_state,
@@ -37,9 +39,10 @@ class Shrub : public BucketRenderer {
     u32 vert_count;
     const std::vector<tfrag3::ShrubDraw>* draws = nullptr;
     const std::vector<tfrag3::TieWindInstance>* instance_info = nullptr;
-    const std::vector<tfrag3::TimeOfDayColor>* colors = nullptr;
+    const tfrag3::PackedTimeOfDay* colors = nullptr;
     const u32* index_data = nullptr;
-    SwizzledTimeOfDay tod_cache;
+    std::vector<bool> proto_vis_mask;
+    std::unordered_map<std::string, std::vector<u32>> proto_name_to_idx;
 
     struct {
       u32 draws = 0;
@@ -52,6 +55,10 @@ class Shrub : public BucketRenderer {
       Filtered<float> tree_time;
     } perf;
   };
+
+  struct {
+    GLuint decal;
+  } m_uniforms;
 
   std::vector<Tree> m_trees;
   std::string m_level_name;
@@ -71,4 +78,6 @@ class Shrub : public BucketRenderer {
     std::vector<void*> multidraw_index_offset_buffer;
   } m_cache;
   TfragPcPortData m_pc_port_data;
+  const u8* m_proto_vis_data = nullptr;
+  int m_proto_vis_data_size = 0;
 };

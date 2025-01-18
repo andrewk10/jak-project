@@ -30,6 +30,7 @@ void OceanMidAndFar::render(DmaFollower& dma,
       render_jak1(dma, render_state, prof);
       break;
     case GameVersion::Jak2:
+    case GameVersion::Jak3:
       render_jak2(dma, render_state, prof);
       break;
   }
@@ -76,15 +77,6 @@ void OceanMidAndFar::render_jak1(DmaFollower& dma,
 
   m_direct.flush_pending(render_state, prof);
   m_direct.set_mipmap(false);
-}
-
-void advance_and_print_dma(DmaFollower& dma) {
-  auto data = dma.read_and_advance();
-  printf(
-      "dma transfer:\n%ssize: %d\nvif0: %s, data: %d\nvif1: %s, data: %d, imm: "
-      "%d\n\n",
-      dma.current_tag().print().c_str(), data.size_bytes, data.vifcode0().print().c_str(),
-      data.vif0(), data.vifcode1().print().c_str(), data.vifcode1().num, data.vifcode1().immediate);
 }
 
 void OceanMidAndFar::render_jak2(DmaFollower& dma,
@@ -183,6 +175,7 @@ void OceanMidAndFar::handle_ocean_mid(DmaFollower& dma,
         m_mid_renderer.run(dma, render_state, prof);
         break;
       case GameVersion::Jak2:
+      case GameVersion::Jak3:
         m_mid_renderer.run_jak2(dma, render_state, prof);
     }
   } else {

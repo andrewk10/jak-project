@@ -6,8 +6,8 @@
 
 #include "goalc/emitter/IGen.h"
 
-#include "third-party/fmt/core.h"
-#include "third-party/fmt/format.h"
+#include "fmt/core.h"
+#include "fmt/format.h"
 
 using namespace emitter;
 namespace {
@@ -423,7 +423,7 @@ RegAllocInstr IR_FunctionCall::to_rai() {
   }
 
   for (int i = 0; i < emitter::RegisterInfo::N_REGS; i++) {
-    auto info = emitter::gRegInfo.get_info(i);
+    auto& info = emitter::gRegInfo.get_info(i);
     if (info.temp()) {
       rai.clobber.emplace_back(i);
     }
@@ -1608,6 +1608,9 @@ std::string IR_Int128Math3Asm::print() {
     case Kind::PACKUSWB:
       function = ".packuswb";
       break;
+    case Kind::PADDB:
+      function = ".paddb";
+      break;
     default:
       ASSERT(false);
   }
@@ -1697,6 +1700,9 @@ void IR_Int128Math3Asm::do_codegen(emitter::ObjectGenerator* gen,
       break;
     case Kind::PACKUSWB:
       gen->add_instr(IGen::vpackuswb(dst, src1, src2), irec);
+      break;
+    case Kind::PADDB:
+      gen->add_instr(IGen::parallel_add_byte(dst, src1, src2), irec);
       break;
     default:
       ASSERT(false);

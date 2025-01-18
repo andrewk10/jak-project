@@ -12,7 +12,7 @@
 #include "gtest/gtest.h"
 #include "test/goalc/framework/test_runner.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 class WithGameTests : public ::testing::Test {
  public:
@@ -292,7 +292,8 @@ TEST_F(WithGameTests, DebuggerMemoryMap) {
 TEST_F(WithGameTests, DebuggerDisassemble) {
   auto di = shared_compiler->compiler.get_debugger().get_debug_info_for_object("gcommon");
   bool fail = false;
-  auto result = di.disassemble_all_functions(&fail, &shared_compiler->compiler.get_goos().reader);
+  auto result =
+      di.disassemble_all_functions(&fail, &shared_compiler->compiler.get_goos().reader, false);
   // printf("Got\n%s\n", result.c_str());
   EXPECT_FALSE(fail);
 }
@@ -648,16 +649,20 @@ TEST_F(WithGameTests, I128Simple) {
 // TODO - add tests
 
 TEST_F(WithGameTests, Pextlw) {
-  shared_compiler->runner.run_static_test(testCategory, "test-pextlw.gc",
-                                          {"#x07060504171615140302010013121110\n"
-                                           "#x0f0e0d0c1f1e1d1c0b0a09081b1a1918\n"
-                                           "#x07060504030201001716151413121110\n"
-                                           "#x1f1e1d1c1b1a19180f0e0d0c0b0a0908\n"
-                                           "#x0d0c0908050401001d1c191815141110\n"
-                                           "#x0e0c0a08060402001e1c1a1816141210\n"
-                                           "#xffffffff00000000ffffffff00000000\n"
-                                           "#x00090000000000fefffffffe000002ff\n"
-                                           "0\n"});
+  shared_compiler->runner.run_static_test(
+      testCategory, "test-pextlw.gc",
+      {"#x07060504171615140302010013121110\n"
+       "#x0f0e0d0c1f1e1d1c0b0a09081b1a1918\n"
+       "#x07060504030201001716151413121110\n"
+       "#x1f1e1d1c1b1a19180f0e0d0c0b0a0908\n"
+       "#x0d0c0908050401001d1c191815141110\n"
+       "#x0e0c0a08060402001e1c1a1816141210\n"
+       "#xffffffff00000000ffffffff00000000\n"
+       "#x00090000000000fefffffffe000002ff\n"
+       "1 + 7 = 8 (8)\n2 + 8 = a (a)\n3 + 3 = 6 (6)\n4 + 4 = 8 (8)\n0 + 1 = 1 (1)\n0 + 2 = 2 "
+       "(2)\n0 + 3 = 3 (3)\n0 + 4 = 4 (4)\n8 + 9 = 11 (11)\n8 + 8 = 10 (10)\n8 + 7 = f (f)\n8 + 6 "
+       "= e (e)\nf0 + f0 = e0 (e0)\nf0 + f0 = e0 (e0)\nf1 + f1 = e2 (e2)\nf3 + f3 = e6 (e6)\n"
+       "0\n"});
 }
 
 TEST_F(WithGameTests, Matrix) {
@@ -778,7 +783,7 @@ TEST_F(WithGameTests, StaticTypeArray) {
                                           {"matched!\n0\n"});
 }
 
-TEST_F(WithGameTests, StaticArraySubtypeDraft) {
+TEST_F(WithGameTests, StaticArraySubtype) {
   shared_compiler->runner.run_static_test(testCategory, "test-static-array-subtype.gc",
                                           {"length - 2\ntest\n1\n0\n"});
 }

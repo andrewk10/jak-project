@@ -12,62 +12,62 @@
   :duration (seconds 0.267)
   :flags (use-local-clock unk-6)
   :bounds (static-bspherem 0 0 0 8)
-  :rotate ((degrees 4) (degrees 0) (degrees 0))
+  :rotate ((degrees 90) (degrees 0) (degrees 0))
   :parts ((sp-item 586 :flags (is-3d launch-asap bit7)) (sp-item 587 :flags (launch-asap)) (sp-item 588 :flags (bit7)))
   )
 
 ;; failed to figure out what this is:
 (defpart 586
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #x13 :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-scale-x (meters 4.75))
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-flt spt-g 255.0)
-    (sp-flt spt-b 255.0)
-    (sp-flt spt-a 196.0)
-    (sp-flt spt-fade-a -3.1875)
-    (sp-int spt-timer 80)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (harddot effects))
+    (:num 1.0)
+    (:scale-x (meters 4.75))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 255.0)
+    (:b 255.0)
+    (:a 196.0)
+    (:fade-a -3.1875)
+    (:timer (seconds 0.267))
+    (:flags (sp-cpuinfo-flag-2))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 587
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xbb :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-scale-x (meters 14))
-    (sp-flt spt-rot-x 2048.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 3600.0) 1.0)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-flt spt-g 255.0)
-    (sp-flt spt-b 255.0)
-    (sp-flt spt-a 48.0)
-    (sp-flt spt-fade-a -0.8)
-    (sp-int spt-timer 80)
-    (sp-cpuinfo-flags glow)
-    (sp-flt spt-userdata 4096.0)
+  :init-specs ((:texture (glow effects))
+    (:num 1.0)
+    (:scale-x (meters 14))
+    (:rot-x (degrees 11.25))
+    (:rot-z (degrees 0) (degrees 3600))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 255.0)
+    (:b 255.0)
+    (:a 48.0)
+    (:fade-a -0.8)
+    (:timer (seconds 0.267))
+    (:flags (glow))
+    (:userdata 4096.0)
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 588
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xc9 :page #xc))
-    (sp-flt spt-num 16.0)
-    (sp-rnd-flt spt-x (meters 0) (meters 2) 1.0)
-    (sp-rnd-flt spt-scale-x (meters 0.1) (meters 0.1) 1.0)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-flt spt-g 255.0)
-    (sp-flt spt-b 255.0)
-    (sp-flt spt-a 255.0)
-    (sp-flt spt-scalevel-x (meters -0.0025))
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-int spt-timer 80)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-0 sp-cpuinfo-flag-3)
-    (sp-rnd-flt spt-rotate-y (degrees 0.0) (degrees 3600.0) 1.0)
+  :init-specs ((:texture (hotdot effects))
+    (:num 16.0)
+    (:x (meters 0) (meters 2))
+    (:scale-x (meters 0.1) (meters 0.1))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 255.0)
+    (:b 255.0)
+    (:a 255.0)
+    (:scalevel-x (meters -0.0025))
+    (:scalevel-y :copy scalevel-x)
+    (:timer (seconds 0.267))
+    (:flags (sp-cpuinfo-flag-0 sp-cpuinfo-flag-3))
+    (:rotate-y (degrees 0) (degrees 3600))
     )
   )
 
@@ -76,26 +76,26 @@
 
 ;; failed to figure out what this is:
 (defpart 589
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :page #xc))
-    (sp-rnd-flt spt-num 1.0 1.0 1.0)
-    (sp-rnd-flt spt-x (meters 0) (meters 10) 1.0)
-    (sp-rnd-flt spt-scale-x (meters 1) (meters 1) 1.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 3600.0) 1.0)
-    (sp-rnd-flt spt-scale-y (meters 1) (meters 1) 1.0)
-    (sp-flt spt-r 128.0)
-    (sp-rnd-flt spt-g 106.0 16.0 1.0)
-    (sp-rnd-flt spt-b 64.0 32.0 1.0)
-    (sp-rnd-flt spt-a 16.0 32.0 1.0)
-    (sp-rnd-flt spt-vel-x (meters 0.033333335) (meters 0.033333335) 1.0)
-    (sp-rnd-flt spt-scalevel-x (meters 0.033333335) (meters 0.006666667) 1.0)
-    (sp-rnd-flt spt-rotvel-z (degrees -0.3) (degrees 0.6) 1.0)
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-rnd-flt spt-fade-a -0.04 -0.08 1.0)
-    (sp-flt spt-accel-y 1.3653333)
-    (sp-rnd-flt spt-friction 0.95 0.03 1.0)
-    (sp-int spt-timer 1300)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-12)
-    (sp-rnd-flt spt-rotate-y (degrees 0.0) (degrees 3600.0) 1.0)
+  :init-specs ((:texture (bigpuff effects))
+    (:num 1.0 1.0)
+    (:x (meters 0) (meters 10))
+    (:scale-x (meters 1) (meters 1))
+    (:rot-z (degrees 0) (degrees 3600))
+    (:scale-y (meters 1) (meters 1))
+    (:r 128.0)
+    (:g 106.0 16.0)
+    (:b 64.0 32.0)
+    (:a 16.0 32.0)
+    (:vel-x (meters 0.033333335) (meters 0.033333335))
+    (:scalevel-x (meters 0.033333335) (meters 0.006666667))
+    (:rotvel-z (degrees -0.3) (degrees 0.6))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-a -0.04 -0.08)
+    (:accel-y (meters 0.00033333333))
+    (:friction 0.95 0.03)
+    (:timer (seconds 4.335))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-12))
+    (:rotate-y (degrees 0) (degrees 3600))
     )
   )
 
@@ -104,26 +104,26 @@
 
 ;; failed to figure out what this is:
 (defpart 590
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-rnd-flt spt-x (meters 0) (meters 5) 1.0)
-    (sp-rnd-flt spt-scale-x (meters 1) (meters 1) 1.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 3600.0) 1.0)
-    (sp-rnd-flt spt-scale-y (meters 1) (meters 1) 1.0)
-    (sp-flt spt-r 128.0)
-    (sp-rnd-flt spt-g 106.0 16.0 1.0)
-    (sp-rnd-flt spt-b 64.0 32.0 1.0)
-    (sp-rnd-flt spt-a 16.0 16.0 1.0)
-    (sp-rnd-flt spt-vel-x (meters 0.033333335) (meters 0.033333335) 1.0)
-    (sp-rnd-flt spt-scalevel-x (meters 0.016666668) (meters 0.006666667) 1.0)
-    (sp-rnd-flt spt-rotvel-z (degrees -0.3) (degrees 0.6) 1.0)
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-rnd-flt spt-fade-a -0.04 -0.08 1.0)
-    (sp-flt spt-accel-y 1.3653333)
-    (sp-rnd-flt spt-friction 0.95 0.03 1.0)
-    (sp-int spt-timer 1300)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-12)
-    (sp-rnd-flt spt-rotate-y (degrees 0.0) (degrees 3600.0) 1.0)
+  :init-specs ((:texture (bigpuff effects))
+    (:num 1.0)
+    (:x (meters 0) (meters 5))
+    (:scale-x (meters 1) (meters 1))
+    (:rot-z (degrees 0) (degrees 3600))
+    (:scale-y (meters 1) (meters 1))
+    (:r 128.0)
+    (:g 106.0 16.0)
+    (:b 64.0 32.0)
+    (:a 16.0 16.0)
+    (:vel-x (meters 0.033333335) (meters 0.033333335))
+    (:scalevel-x (meters 0.016666668) (meters 0.006666667))
+    (:rotvel-z (degrees -0.3) (degrees 0.6))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-a -0.04 -0.08)
+    (:accel-y (meters 0.00033333333))
+    (:friction 0.95 0.03)
+    (:timer (seconds 4.335))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-12))
+    (:rotate-y (degrees 0) (degrees 3600))
     )
   )
 
@@ -133,7 +133,7 @@
   :linger-duration (seconds 2)
   :flags (unk-4 unk-6)
   :bounds (static-bspherem 0 0 0 12)
-  :rotate ((degrees 8) (degrees 0) (degrees 0))
+  :rotate ((degrees 180) (degrees 0) (degrees 0))
   :parts ((sp-item 591 :flags (bit6 bit7))
     (sp-item 592 :flags (bit6 bit7))
     (sp-item 593 :flags (bit7))
@@ -148,7 +148,7 @@
   :linger-duration (seconds 2)
   :flags (unk-4 unk-6)
   :bounds (static-bspherem 0 0 0 12)
-  :rotate ((degrees 8) (degrees 0) (degrees 0))
+  :rotate ((degrees 180) (degrees 0) (degrees 0))
   :parts ((sp-item 595 :fade-after (meters 120) :falloff-to (meters 90) :flags (bit7))
     (sp-item 596 :fade-after (meters 120) :falloff-to (meters 90) :flags (bit7))
     (sp-item 597 :flags (bit6 bit7))
@@ -157,169 +157,169 @@
 
 ;; failed to figure out what this is:
 (defpart 591
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xbb :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-y (meters 0.1))
-    (sp-rnd-flt spt-scale-x (meters 1) (meters 0.4) 1.0)
-    (sp-flt spt-rot-x 409.6)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-rnd-flt spt-g 64.0 128.0 1.0)
-    (sp-flt spt-b 0.0)
-    (sp-rnd-flt spt-a 64.0 8.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 glow)
-    (sp-flt spt-userdata 409.6)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (glow effects))
+    (:num 1.0)
+    (:y (meters 0.1))
+    (:scale-x (meters 1) (meters 0.4))
+    (:rot-x (degrees 2.25))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 64.0 128.0)
+    (:b 0.0)
+    (:a 64.0 8.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 glow))
+    (:userdata 409.6)
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 592
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xca :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-y (meters 0.1))
-    (sp-rnd-flt spt-scale-x (meters 4.8) (meters 0.6) 1.0)
-    (sp-flt spt-rot-x 409.6)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-rnd-flt spt-g 64.0 128.0 1.0)
-    (sp-flt spt-b 0.0)
-    (sp-rnd-flt spt-a 16.0 2.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 glow)
-    (sp-flt spt-userdata 409.6)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (glow-soft effects))
+    (:num 1.0)
+    (:y (meters 0.1))
+    (:scale-x (meters 4.8) (meters 0.6))
+    (:rot-x (degrees 2.25))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 64.0 128.0)
+    (:b 0.0)
+    (:a 16.0 2.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 glow))
+    (:userdata 409.6)
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 593
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :page #xc))
-    (sp-rnd-flt spt-num 1.0 2.0 1.0)
-    (sp-rnd-flt spt-scale-x (meters 1) (meters 1) 1.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 3600.0) 1.0)
-    (sp-rnd-flt spt-scale-y (meters 1) (meters 1) 1.0)
-    (sp-flt spt-r 196.0)
-    (sp-rnd-flt spt-g 128.0 64.0 1.0)
-    (sp-copy-from-other spt-b -1)
-    (sp-rnd-flt spt-a 16.0 16.0 1.0)
-    (sp-rnd-flt spt-vel-x (meters -0.006666667) (meters 0.013333334) 1.0)
-    (sp-rnd-flt spt-vel-y (meters -0.05) (meters -0.1) 1.0)
-    (sp-rnd-flt spt-vel-z (meters -0.006666667) (meters 0.013333334) 1.0)
-    (sp-rnd-flt spt-scalevel-x (meters 0.053333335) (meters 0.053333335) 1.0)
-    (sp-rnd-flt spt-rotvel-z (degrees -1.2) (degrees 2.4) 1.0)
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-flt spt-fade-r 0.0)
-    (sp-flt spt-fade-g 0.0)
-    (sp-flt spt-fade-b 0.0)
-    (sp-rnd-flt spt-fade-a -0.21333334 -0.42666668 1.0)
-    (sp-rnd-flt spt-accel-y 0.68266666 2.048 1.0)
-    (sp-rnd-flt spt-friction 0.94 0.04 1.0)
-    (sp-int spt-timer 600)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-12 sp-cpuinfo-flag-14)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (bigpuff effects))
+    (:num 1.0 2.0)
+    (:scale-x (meters 1) (meters 1))
+    (:rot-z (degrees 0) (degrees 3600))
+    (:scale-y (meters 1) (meters 1))
+    (:r 196.0)
+    (:g 128.0 64.0)
+    (:b :copy g)
+    (:a 16.0 16.0)
+    (:vel-x (meters -0.006666667) (meters 0.013333334))
+    (:vel-y (meters -0.05) (meters -0.1))
+    (:vel-z (meters -0.006666667) (meters 0.013333334))
+    (:scalevel-x (meters 0.053333335) (meters 0.053333335))
+    (:rotvel-z (degrees -1.2) (degrees 2.4))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-r 0.0)
+    (:fade-g 0.0)
+    (:fade-b 0.0)
+    (:fade-a -0.21333334 -0.42666668)
+    (:accel-y (meters 0.00016666666) (meters 0.0005))
+    (:friction 0.94 0.04)
+    (:timer (seconds 2))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-12 sp-cpuinfo-flag-14))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 596
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :page #xc))
-    (sp-rnd-flt spt-num 1.0 2.0 1.0)
-    (sp-rnd-flt spt-scale-x (meters 1) (meters 1) 1.0)
-    (sp-rnd-flt spt-rot-z (degrees 0.0) (degrees 3600.0) 1.0)
-    (sp-rnd-flt spt-scale-y (meters 1) (meters 1) 1.0)
-    (sp-flt spt-r 196.0)
-    (sp-rnd-flt spt-g 128.0 64.0 1.0)
-    (sp-copy-from-other spt-b -1)
-    (sp-rnd-flt spt-a 10.0 4.0 1.0)
-    (sp-rnd-flt spt-vel-x (meters -0.006666667) (meters 0.013333334) 1.0)
-    (sp-rnd-flt spt-vel-y (meters -0.05) (meters -0.1) 1.0)
-    (sp-rnd-flt spt-vel-z (meters -0.006666667) (meters 0.013333334) 1.0)
-    (sp-rnd-flt spt-scalevel-x (meters 0.053333335) (meters 0.053333335) 1.0)
-    (sp-rnd-flt spt-rotvel-z (degrees -1.2) (degrees 2.4) 1.0)
-    (sp-copy-from-other spt-scalevel-y -4)
-    (sp-flt spt-fade-r 0.0)
-    (sp-flt spt-fade-g 0.0)
-    (sp-flt spt-fade-b 0.0)
-    (sp-rnd-flt spt-fade-a -0.21333334 -0.42666668 1.0)
-    (sp-rnd-flt spt-accel-y 0.68266666 2.048 1.0)
-    (sp-rnd-flt spt-friction 0.94 0.04 1.0)
-    (sp-int spt-timer 600)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-12 sp-cpuinfo-flag-14)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (bigpuff effects))
+    (:num 1.0 2.0)
+    (:scale-x (meters 1) (meters 1))
+    (:rot-z (degrees 0) (degrees 3600))
+    (:scale-y (meters 1) (meters 1))
+    (:r 196.0)
+    (:g 128.0 64.0)
+    (:b :copy g)
+    (:a 10.0 4.0)
+    (:vel-x (meters -0.006666667) (meters 0.013333334))
+    (:vel-y (meters -0.05) (meters -0.1))
+    (:vel-z (meters -0.006666667) (meters 0.013333334))
+    (:scalevel-x (meters 0.053333335) (meters 0.053333335))
+    (:rotvel-z (degrees -1.2) (degrees 2.4))
+    (:scalevel-y :copy scalevel-x)
+    (:fade-r 0.0)
+    (:fade-g 0.0)
+    (:fade-b 0.0)
+    (:fade-a -0.21333334 -0.42666668)
+    (:accel-y (meters 0.00016666666) (meters 0.0005))
+    (:friction 0.94 0.04)
+    (:timer (seconds 2))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-12 sp-cpuinfo-flag-14))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 597
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xbb :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-y (meters 0.1))
-    (sp-rnd-flt spt-scale-x (meters 1.4) (meters 0.1) 1.0)
-    (sp-flt spt-rot-x 409.6)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 128.0)
-    (sp-rnd-flt spt-g 48.0 32.0 1.0)
-    (sp-flt spt-b 0.0)
-    (sp-rnd-flt spt-a 48.0 8.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 glow)
-    (sp-flt spt-userdata 409.6)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (glow effects))
+    (:num 1.0)
+    (:y (meters 0.1))
+    (:scale-x (meters 1.4) (meters 0.1))
+    (:rot-x (degrees 2.25))
+    (:scale-y :copy scale-x)
+    (:r 128.0)
+    (:g 48.0 32.0)
+    (:b 0.0)
+    (:a 48.0 8.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 glow))
+    (:userdata 409.6)
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 594
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xc9 :page #xc))
-    (sp-rnd-flt spt-num 0.0 1.0 1.0)
-    (sp-rnd-flt spt-x (meters 0) (meters 0.5) 1.0)
-    (sp-rnd-flt spt-scale-x (meters 0.2) (meters 0.1) 1.0)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-rnd-flt spt-r 192.0 64.0 1.0)
-    (sp-flt spt-g 128.0)
-    (sp-flt spt-b 0.0)
-    (sp-flt spt-a 128.0)
-    (sp-rnd-flt spt-omega 12.288 4.096 1.0)
-    (sp-rnd-flt spt-vel-x (meters -0.013333334) (meters 0.026666667) 1.0)
-    (sp-rnd-flt spt-vel-y (meters -0.1) (meters -0.06666667) 1.0)
-    (sp-rnd-flt spt-vel-z (meters -0.013333334) (meters 0.026666667) 1.0)
-    (sp-flt spt-fade-g -1.0)
-    (sp-flt spt-fade-a -2.56)
-    (sp-rnd-flt spt-accel-x 0.0 6.826667 1.0)
-    (sp-rnd-flt spt-friction 0.96 0.02 1.0)
-    (sp-int-plain-rnd spt-timer 25 24 1)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 sp-cpuinfo-flag-12 sp-cpuinfo-flag-14)
-    (sp-func spt-func 'sparticle-motion-blur)
-    (sp-rnd-flt spt-rotate-y (degrees 0.0) (degrees 3600.0) 1.0)
+  :init-specs ((:texture (hotdot effects))
+    (:num 0.0 1.0)
+    (:x (meters 0) (meters 0.5))
+    (:scale-x (meters 0.2) (meters 0.1))
+    (:scale-y :copy scale-x)
+    (:r 192.0 64.0)
+    (:g 128.0)
+    (:b 0.0)
+    (:a 128.0)
+    (:omega (degrees 0.0675) (degrees 0.0225))
+    (:vel-x (meters -0.013333334) (meters 0.026666667))
+    (:vel-y (meters -0.1) (meters -0.06666667))
+    (:vel-z (meters -0.013333334) (meters 0.026666667))
+    (:fade-g -1.0)
+    (:fade-a -2.56)
+    (:accel-x (meters 0) (meters 0.0016666667))
+    (:friction 0.96 0.02)
+    (:timer (seconds 0.085) (seconds 0.08))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3 sp-cpuinfo-flag-12 sp-cpuinfo-flag-14))
+    (:func 'sparticle-motion-blur)
+    (:rotate-y (degrees 0) (degrees 3600))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 595
-  :init-specs ((sp-flt spt-num 0.4)
-    (sp-int spt-rot-x 8)
-    (sp-flt spt-r 1638.4)
-    (sp-flt spt-g 1331.2)
-    (sp-flt spt-b 1433.6)
-    (sp-rnd-flt spt-vel-y (meters -0.05) (meters -0.016666668) 1.0)
-    (sp-flt spt-fade-r 32.768)
-    (sp-flt spt-fade-g 28.671999)
-    (sp-flt spt-fade-b 26.623999)
-    (sp-rnd-flt spt-accel-x 0.0 6.826667 1.0)
-    (sp-flt spt-friction 0.94)
-    (sp-int spt-timer 100)
-    (sp-cpuinfo-flags distort)
-    (sp-int spt-next-time 50)
-    (sp-launcher-by-id spt-next-launcher 598)
-    (sp-rnd-flt spt-rotate-y (degrees 0.0) (degrees 360.0) 1.0)
+  :init-specs ((:num 0.4)
+    (:rot-x 8)
+    (:r 1638.4)
+    (:g 1331.2)
+    (:b 1433.6)
+    (:vel-y (meters -0.05) (meters -0.016666668))
+    (:fade-r 32.768)
+    (:fade-g 28.671999)
+    (:fade-b 26.623999)
+    (:accel-x (meters 0) (meters 0.0016666667))
+    (:friction 0.94)
+    (:timer (seconds 0.335))
+    (:flags (distort))
+    (:next-time (seconds 0.167))
+    (:next-launcher 598)
+    (:rotate-y (degrees 0) (degrees 360))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 598
-  :init-specs ((sp-flt spt-fade-r 0.0) (sp-flt spt-fade-g 0.0) (sp-flt spt-fade-b -4.096))
+  :init-specs ((:fade-r 0.0) (:fade-g 0.0) (:fade-b -4.096))
   )
 
 ;; failed to figure out what this is:
@@ -339,127 +339,127 @@
 
 ;; failed to figure out what this is:
 (defpart 599
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #x90 :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-x (meters 1.45))
-    (sp-flt spt-y (meters 1.1))
-    (sp-flt spt-z (meters -5.15))
-    (sp-flt spt-scale-x (meters 0.6))
-    (sp-int spt-rot-x 4)
-    (sp-flt spt-scale-y (meters 2))
-    (sp-rnd-flt spt-r 128.0 128.0 1.0)
-    (sp-rnd-flt spt-g 32.0 96.0 1.0)
-    (sp-copy-from-other spt-b -1)
-    (sp-rnd-flt spt-a 128.0 64.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (mech-flame effects))
+    (:num 1.0)
+    (:x (meters 1.45))
+    (:y (meters 1.1))
+    (:z (meters -5.15))
+    (:scale-x (meters 0.6))
+    (:rot-x 4)
+    (:scale-y (meters 2))
+    (:r 128.0 128.0)
+    (:g 32.0 96.0)
+    (:b :copy g)
+    (:a 128.0 64.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 600
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #x90 :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-x (meters 1.45))
-    (sp-flt spt-y (meters 1.1))
-    (sp-flt spt-z (meters -5.15))
-    (sp-flt spt-scale-x (meters 0.6))
-    (sp-int spt-rot-x 4)
-    (sp-flt spt-rot-z (degrees 90.0))
-    (sp-flt spt-scale-y (meters 2))
-    (sp-rnd-flt spt-r 128.0 128.0 1.0)
-    (sp-rnd-flt spt-g 32.0 96.0 1.0)
-    (sp-copy-from-other spt-b -1)
-    (sp-rnd-flt spt-a 128.0 64.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (mech-flame effects))
+    (:num 1.0)
+    (:x (meters 1.45))
+    (:y (meters 1.1))
+    (:z (meters -5.15))
+    (:scale-x (meters 0.6))
+    (:rot-x 4)
+    (:rot-z (degrees 90))
+    (:scale-y (meters 2))
+    (:r 128.0 128.0)
+    (:g 32.0 96.0)
+    (:b :copy g)
+    (:a 128.0 64.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 601
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xca :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-x (meters 1.45))
-    (sp-flt spt-y (meters 1.1))
-    (sp-flt spt-z (meters -4.75))
-    (sp-flt spt-scale-x (meters 1.75))
-    (sp-flt spt-rot-x 102.4)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-rnd-flt spt-g 0.0 64.0 1.0)
-    (sp-flt spt-b 0.0)
-    (sp-rnd-flt spt-a 16.0 4.0 1.0)
-    (sp-flt spt-rotvel-z (degrees 0.3))
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags glow)
-    (sp-flt spt-userdata 2048.0)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (glow-soft effects))
+    (:num 1.0)
+    (:x (meters 1.45))
+    (:y (meters 1.1))
+    (:z (meters -4.75))
+    (:scale-x (meters 1.75))
+    (:rot-x (degrees 0.5625))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 0.0 64.0)
+    (:b 0.0)
+    (:a 16.0 4.0)
+    (:rotvel-z (degrees 0.3))
+    (:timer (seconds 0.017))
+    (:flags (glow))
+    (:userdata 2048.0)
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 602
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #x90 :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-x (meters -1.45))
-    (sp-flt spt-y (meters 1.1))
-    (sp-flt spt-z (meters -5.15))
-    (sp-flt spt-scale-x (meters 0.6))
-    (sp-int spt-rot-x 4)
-    (sp-flt spt-scale-y (meters 2))
-    (sp-rnd-flt spt-r 128.0 128.0 1.0)
-    (sp-rnd-flt spt-g 32.0 96.0 1.0)
-    (sp-copy-from-other spt-b -1)
-    (sp-rnd-flt spt-a 128.0 64.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (mech-flame effects))
+    (:num 1.0)
+    (:x (meters -1.45))
+    (:y (meters 1.1))
+    (:z (meters -5.15))
+    (:scale-x (meters 0.6))
+    (:rot-x 4)
+    (:scale-y (meters 2))
+    (:r 128.0 128.0)
+    (:g 32.0 96.0)
+    (:b :copy g)
+    (:a 128.0 64.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 603
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #x90 :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-x (meters -1.45))
-    (sp-flt spt-y (meters 1.1))
-    (sp-flt spt-z (meters -5.15))
-    (sp-flt spt-scale-x (meters 0.6))
-    (sp-int spt-rot-x 4)
-    (sp-flt spt-rot-z (degrees 90.0))
-    (sp-flt spt-scale-y (meters 2))
-    (sp-rnd-flt spt-r 128.0 128.0 1.0)
-    (sp-rnd-flt spt-g 32.0 96.0 1.0)
-    (sp-copy-from-other spt-b -1)
-    (sp-rnd-flt spt-a 128.0 64.0 1.0)
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags sp-cpuinfo-flag-2 sp-cpuinfo-flag-3)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (mech-flame effects))
+    (:num 1.0)
+    (:x (meters -1.45))
+    (:y (meters 1.1))
+    (:z (meters -5.15))
+    (:scale-x (meters 0.6))
+    (:rot-x 4)
+    (:rot-z (degrees 90))
+    (:scale-y (meters 2))
+    (:r 128.0 128.0)
+    (:g 32.0 96.0)
+    (:b :copy g)
+    (:a 128.0 64.0)
+    (:timer (seconds 0.017))
+    (:flags (sp-cpuinfo-flag-2 sp-cpuinfo-flag-3))
+    (:rotate-y (degrees 0))
     )
   )
 
 ;; failed to figure out what this is:
 (defpart 604
-  :init-specs ((sp-tex spt-texture (new 'static 'texture-id :index #xca :page #xc))
-    (sp-flt spt-num 1.0)
-    (sp-flt spt-x (meters -1.45))
-    (sp-flt spt-y (meters 1.1))
-    (sp-flt spt-z (meters -4.75))
-    (sp-flt spt-scale-x (meters 1.75))
-    (sp-flt spt-rot-x 102.4)
-    (sp-copy-from-other spt-scale-y -4)
-    (sp-flt spt-r 255.0)
-    (sp-rnd-flt spt-g 0.0 64.0 1.0)
-    (sp-flt spt-b 0.0)
-    (sp-rnd-flt spt-a 16.0 4.0 1.0)
-    (sp-flt spt-rotvel-z (degrees 0.3))
-    (sp-int spt-timer 5)
-    (sp-cpuinfo-flags glow)
-    (sp-flt spt-userdata 2048.0)
-    (sp-flt spt-rotate-y (degrees 0.0))
+  :init-specs ((:texture (glow-soft effects))
+    (:num 1.0)
+    (:x (meters -1.45))
+    (:y (meters 1.1))
+    (:z (meters -4.75))
+    (:scale-x (meters 1.75))
+    (:rot-x (degrees 0.5625))
+    (:scale-y :copy scale-x)
+    (:r 255.0)
+    (:g 0.0 64.0)
+    (:b 0.0)
+    (:a 16.0 4.0)
+    (:rotvel-z (degrees 0.3))
+    (:timer (seconds 0.017))
+    (:flags (glow))
+    (:userdata 2048.0)
+    (:rotate-y (degrees 0))
     )
   )
 
@@ -472,96 +472,87 @@
 
 ;; definition of type warp-gate
 (deftype warp-gate (process-drawable)
-  ((root-override collide-shape          :offset        128)
-   (level-name    uint32                 :offset-assert 200)
-   (on-notice     pair                   :offset-assert 204)
-   (on-activate   pair                   :offset-assert 208)
-   (on-close      pair                   :offset-assert 212)
-   (wait-for      pair                   :offset-assert 216)
-   (continue      continue-point         :offset-assert 220)
-   (distance      meters                 :offset-assert 224)
-   (anim-speed    float                  :offset-assert 228)
-   (test-time     time-frame             :offset-assert 232)
-   (center        vector         :inline :offset-assert 240)
+  ((root         collide-shape :override)
+   (level-name   uint32)
+   (on-notice    pair)
+   (on-activate  pair)
+   (on-close     pair)
+   (wait-for     pair)
+   (continue     continue-point)
+   (distance     meters)
+   (anim-speed   float)
+   (test-time    time-frame)
+   (center       vector         :inline)
    )
-  :heap-base #x80
-  :method-count-assert 26
-  :size-assert         #x100
-  :flag-assert         #x1a00800100
+  (:state-methods
+    idle
+    (use continue-point)
+    hidden
+    )
   (:methods
-    (idle () _type_ :state 20)
-    (use (continue-point) _type_ :state 21)
-    (hidden () _type_ :state 22)
-    (init-skel-and-collide (_type_) none 23)
-    (setup-fields (_type_) none 24)
-    (handle-notice (_type_) continue-point 25)
+    (init-skel-and-collide (_type_) none)
+    (setup-fields (_type_) none)
+    (handle-notice (_type_) continue-point)
     )
   )
 
 ;; definition for method 3 of type warp-gate
-(defmethod inspect warp-gate ((obj warp-gate))
-  (when (not obj)
-    (set! obj obj)
+(defmethod inspect ((this warp-gate))
+  (when (not this)
+    (set! this this)
     (goto cfg-4)
     )
   (let ((t9-0 (method-of-type process-drawable inspect)))
-    (t9-0 obj)
+    (t9-0 this)
     )
-  (format #t "~2Tlevel-name: ~A~%" (-> obj level-name))
-  (format #t "~2Ton-notice: ~A~%" (-> obj on-notice))
-  (format #t "~2Ton-activate: ~A~%" (-> obj on-activate))
-  (format #t "~2Ton-close: ~A~%" (-> obj on-close))
-  (format #t "~2Twait-for: ~A~%" (-> obj wait-for))
-  (format #t "~2Tcontinue: ~A~%" (-> obj continue))
-  (format #t "~2Tdistance: (meters ~m)~%" (-> obj distance))
-  (format #t "~2Tanim-speed: ~f~%" (-> obj anim-speed))
-  (format #t "~2Ttest-time: ~D~%" (-> obj test-time))
-  (format #t "~2Tcenter: ~`vector`P~%" (-> obj center))
+  (format #t "~2Tlevel-name: ~A~%" (-> this level-name))
+  (format #t "~2Ton-notice: ~A~%" (-> this on-notice))
+  (format #t "~2Ton-activate: ~A~%" (-> this on-activate))
+  (format #t "~2Ton-close: ~A~%" (-> this on-close))
+  (format #t "~2Twait-for: ~A~%" (-> this wait-for))
+  (format #t "~2Tcontinue: ~A~%" (-> this continue))
+  (format #t "~2Tdistance: (meters ~m)~%" (-> this distance))
+  (format #t "~2Tanim-speed: ~f~%" (-> this anim-speed))
+  (format #t "~2Ttest-time: ~D~%" (-> this test-time))
+  (format #t "~2Tcenter: ~`vector`P~%" (-> this center))
   (label cfg-4)
-  obj
+  this
   )
 
 ;; definition for method 25 of type warp-gate
-(defmethod handle-notice warp-gate ((obj warp-gate))
-  (with-pp
-    (let ((s5-0 (eval!
-                  (new 'stack 'script-context (the-as basic (process->ppointer pp)) pp (the-as vector #f))
-                  (-> obj on-notice)
-                  )
-                )
-          )
-      (cond
-        ((= s5-0 'hide)
-         (logior! (-> obj draw status) (draw-control-status no-draw))
-         (set! (-> obj continue) #f)
-         )
-        (s5-0
-          (logclear! (-> obj draw status) (draw-control-status no-draw))
-          (set! (-> obj continue) (get-continue-by-name *game-info* (the-as string (car s5-0))))
-          (set! (-> obj on-activate) (the-as pair (car (cdr s5-0))))
-          (set! (-> obj wait-for) (the-as pair (car (cdr (cdr s5-0)))))
-          (set! (-> obj on-close) (the-as pair (car (cdr (cdr (cdr s5-0))))))
-          )
-        (else
-          (set! (-> obj continue) #f)
-          )
+(defmethod handle-notice ((this warp-gate))
+  (let ((s5-0 (script-eval (-> this on-notice))))
+    (cond
+      ((= s5-0 'hide)
+       (logior! (-> this draw status) (draw-control-status no-draw))
+       (set! (-> this continue) #f)
+       )
+      (s5-0
+        (logclear! (-> this draw status) (draw-control-status no-draw))
+        (set! (-> this continue) (get-continue-by-name *game-info* (the-as string (car s5-0))))
+        (set! (-> this on-activate) (the-as pair (car (cdr s5-0))))
+        (set! (-> this wait-for) (the-as pair (car (cdr (cdr s5-0)))))
+        (set! (-> this on-close) (the-as pair (car (cdr (cdr (cdr s5-0))))))
+        )
+      (else
+        (set! (-> this continue) #f)
         )
       )
-    (-> obj continue)
     )
+  (-> this continue)
   )
 
 ;; failed to figure out what this is:
 (defstate hidden (warp-gate)
   :virtual #t
-  :code (the-as (function none :behavior warp-gate) sleep-code)
+  :code sleep-code
   )
 
 ;; failed to figure out what this is:
 (defstate idle (warp-gate)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (case event-type
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
       (('hide)
        (go-virtual hidden)
        )
@@ -582,18 +573,17 @@
     )
   :code (behavior ()
     (remove-setting! 'allow-progress)
-    (set! (-> self state-time) (-> self clock frame-counter))
-    (update-transforms (-> self root-override))
+    (set-time! (-> self state-time))
+    (update-transforms (-> self root))
     (until #f
       (handle-notice self)
       (when (and (and *target*
-                      (and (>= (-> self distance) (vector-vector-distance (-> self root-override trans) (-> *target* control trans)))
-                           (zero? (logand (focus-status teleporting) (-> *target* focus-status)))
+                      (and (>= (-> self distance) (vector-vector-distance (-> self root trans) (-> *target* control trans)))
+                           (not (logtest? (focus-status teleporting) (-> *target* focus-status)))
                            )
                       )
                  (and (-> self continue)
-                      (not (logtest? (focus-status in-head edge-grab pole flut tube board pilot mech indax) (-> *target* focus-status))
-                           )
+                      (not (focus-test? *target* in-head edge-grab pole flut tube board pilot mech indax))
                       (-> *setting-control* user-current airlock)
                       (not (-> *setting-control* user-current hint))
                       )
@@ -605,22 +595,19 @@
                                                       (or (= v1-30 'target-warp-in) (= v1-30 'target-warp-out))
                                                       )
                            )
-                      (set! (-> self state-time) (-> self clock frame-counter))
+                      (set-time! (-> self state-time))
                       #f
                       )
                      (else
                        #t
                        )
                      )
-                   (>= (- (-> self clock frame-counter) (-> self state-time)) (seconds 0.1))
+                   (time-elapsed? (-> self state-time) (seconds 0.1))
                    )
           (if (and (cpad-pressed? 0 triangle) (process-grab? *target* #f))
               (go-virtual use (-> self continue))
               )
-          (eval!
-            (new 'stack 'script-context (the-as basic (process->ppointer self)) self (the-as vector #f))
-            (-> self on-close)
-            )
+          (script-eval (-> self on-close))
           (let ((gp-0
                   (new 'stack 'font-context *font-default-matrix* 32 320 0.0 (font-color default) (font-flags shadow kerning))
                   )
@@ -635,18 +622,24 @@
               (set! (-> v1-53 scale) 0.9)
               )
             (set! (-> gp-0 flags) (font-flags shadow kerning large))
-            (print-game-text (lookup-text! *common-text* (game-text-id text-x182) #f) gp-0 #f 44 (bucket-id progress))
+            (print-game-text
+              (lookup-text! *common-text* (text-id press-triangle-to-use) #f)
+              gp-0
+              #f
+              44
+              (bucket-id progress)
+              )
             )
           )
         )
       (cond
         ((-> self continue)
-         (seek! (-> self anim-speed) 1.0 (* 2.0 (-> self clock seconds-per-frame)))
+         (seek! (-> self anim-speed) 1.0 (* 2.0 (seconds-per-frame)))
          (setup-masks (-> self draw) 2 0)
          )
         (else
           (setup-masks (-> self draw) 0 2)
-          (seek! (-> self anim-speed) 0.0 (* 2.0 (-> self clock seconds-per-frame)))
+          (seek! (-> self anim-speed) 0.0 (* 2.0 (seconds-per-frame)))
           )
         )
       (update! (-> self sound))
@@ -655,52 +648,48 @@
       (ja :num! (loop! (-> self anim-speed)))
       )
     #f
-    (none)
     )
   )
 
 ;; failed to figure out what this is:
 (defstate use (warp-gate)
   :virtual #t
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (the-as object (case event-type
-                     (('effect)
-                      (process-spawn
-                        part-tracker
-                        :init part-tracker-init
-                        (-> *part-group-id-table* 130)
-                        0
-                        #f
-                        #f
-                        #f
-                        (-> self node-list data 4 bone transform)
-                        :to *entity-pool*
-                        )
-                      )
-                     )
-            )
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('effect)
+       (process-spawn
+         part-tracker
+         :init part-tracker-init
+         (-> *part-group-id-table* 130)
+         0
+         #f
+         #f
+         #f
+         (-> self node-list data 4 bone transform)
+         :to *entity-pool*
+         )
+       )
+      )
     )
   :exit (behavior ()
     (remove-setting! 'mode-name)
     (remove-setting! 'interp-time)
-    (none)
     )
   :trans (behavior ()
-    (send-event *camera* 'joystick 0 0)
-    (none)
+    (send-event *camera* 'joystick 0.0 0.0)
     )
   :code (behavior ((arg0 continue-point))
     (local-vars (v1-38 symbol))
     (kill-current-talker (the-as symbol '()) '() 'exit)
-    (set-setting! 'mode-name 'cam-fixed 0 0)
-    (set-setting! 'interp-time 'abs 0 0)
-    (set! (-> self state-time) (-> self clock frame-counter))
+    (set-setting! 'mode-name 'cam-fixed 0.0 0)
+    (set-setting! 'interp-time 'abs 0.0 0)
+    (set-time! (-> self state-time))
     (logclear! (-> self mask) (process-mask actor-pause))
     (when (not arg0)
       (process-release? *target*)
       (go-virtual idle)
       )
-    (set-setting! 'allow-progress #f 0 0)
+    (set-setting! 'allow-progress #f 0.0 0)
     (set! (-> *setting-control* user-default border-mode) #t)
     (set! (-> *level* play?) #t)
     (apply-settings *setting-control*)
@@ -717,10 +706,7 @@
       (set! (-> s5-0 param 3) (the-as uint (process->handle self)))
       (send-event-function *target* s5-0)
       )
-    (eval!
-      (new 'stack 'script-context (the-as basic (process->ppointer self)) self (the-as vector #f))
-      (-> self on-activate)
-      )
+    (script-eval (-> self on-activate))
     (while (begin
              (set! v1-38 (when (-> self wait-for)
                            (let* ((s5-1 (-> self wait-for))
@@ -739,26 +725,22 @@
                            )
                    )
              (label cfg-21)
-             (or v1-38 (< (- (-> self clock frame-counter) (-> self state-time)) (seconds 2)))
+             (or v1-38 (not (time-elapsed? (-> self state-time) (seconds 2))))
              )
       (update! (-> self sound))
       (suspend)
       (ja :num! (loop!))
       (ja-post)
       )
-    (if (not (logtest? (-> arg0 flags) (continue-flags cf4)))
+    (if (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
         (set-blackout-frames (seconds 0.05))
         )
     (start 'play arg0)
-    (let ((gp-1 (-> self clock frame-counter)))
-      (until (>= (- (-> self clock frame-counter) gp-1) (seconds 1))
-        (suspend)
-        )
+    (suspend-for (seconds 1)
       )
-    (while (and *target*
-                (and (>= 81920.0 (vector-vector-distance (-> self root-override trans) (-> *target* control trans)))
-                     (zero? (logand (focus-status teleporting) (-> *target* focus-status)))
-                     )
+    (while (and *target* (and (>= 81920.0 (vector-vector-distance (-> self root trans) (-> *target* control trans)))
+                              (not (logtest? (focus-status teleporting) (-> *target* focus-status)))
+                              )
                 )
       (suspend)
       (ja :num! (loop!))
@@ -766,14 +748,13 @@
       )
     (logior! (-> self mask) (process-mask actor-pause))
     (go-virtual idle)
-    (none)
     )
   )
 
 ;; definition for method 23 of type warp-gate
 ;; WARN: Return type mismatch draw-control vs none.
-(defmethod init-skel-and-collide warp-gate ((obj warp-gate))
-  (let ((s5-0 (new 'process 'collide-shape obj (collide-list-enum usually-hit-by-player))))
+(defmethod init-skel-and-collide ((this warp-gate))
+  (let ((s5-0 (new 'process 'collide-shape this (collide-list-enum usually-hit-by-player))))
     (set! (-> s5-0 penetrated-by) (penetrate))
     (let ((v1-2 (new 'process 'collide-shape-prim-mesh s5-0 (the-as uint 0) (the-as uint 0))))
       (set! (-> v1-2 prim-core collide-as) (collide-spec obstacle))
@@ -788,10 +769,10 @@
       (set! (-> s5-0 backup-collide-as) (-> v1-5 prim-core collide-as))
       (set! (-> s5-0 backup-collide-with) (-> v1-5 prim-core collide-with))
       )
-    (set! (-> obj root-override) s5-0)
+    (set! (-> this root) s5-0)
     )
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-warp-gate" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
@@ -801,20 +782,20 @@
 ;; definition for method 24 of type warp-gate
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch float vs none.
-(defmethod setup-fields warp-gate ((obj warp-gate))
-  (set! (-> obj level-name) (the-as uint (-> obj level name)))
-  (set! (-> obj on-notice) (res-lump-struct (-> obj entity) 'on-notice pair))
-  (set! (-> obj on-activate) #f)
-  (set! (-> obj wait-for) #f)
-  (set! (-> obj continue) #f)
-  (set! (-> obj on-close) #f)
-  (set! (-> obj part) (create-launch-control (-> *part-group-id-table* 130) obj))
-  (set! (-> obj center quad) (-> obj root-override trans quad))
-  (set! (-> obj center y) (+ 13516.8 (-> obj center y)))
-  (set! (-> obj sound)
-        (new 'process 'ambient-sound (static-sound-spec "warpgate" :fo-max 30) (-> obj root-override trans))
+(defmethod setup-fields ((this warp-gate))
+  (set! (-> this level-name) (the-as uint (-> this level name)))
+  (set! (-> this on-notice) (res-lump-struct (-> this entity) 'on-notice pair))
+  (set! (-> this on-activate) #f)
+  (set! (-> this wait-for) #f)
+  (set! (-> this continue) #f)
+  (set! (-> this on-close) #f)
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 130) this))
+  (set! (-> this center quad) (-> this root trans quad))
+  (+! (-> this center y) 13516.8)
+  (set! (-> this sound)
+        (new 'process 'ambient-sound (static-sound-spec "warpgate" :fo-max 30) (-> this root trans))
         )
-  (set! (-> obj distance) (res-lump-float (-> obj entity) 'distance :default 20480.0))
+  (set! (-> this distance) (res-lump-float (-> this entity) 'distance :default 20480.0))
   (none)
   )
 
@@ -828,7 +809,7 @@
       (process-drawable-from-entity! self arg0)
       )
   (if arg1
-      (set! (-> self root-override trans quad) (-> arg1 quad))
+      (set! (-> self root trans quad) (-> arg1 quad))
       )
   (logior! (-> self mask) (process-mask actor-pause))
   (setup-fields self)
@@ -837,13 +818,13 @@
   )
 
 ;; definition for method 11 of type warp-gate
-(defmethod init-from-entity! warp-gate ((obj warp-gate) (arg0 entity-actor))
+(defmethod init-from-entity! ((this warp-gate) (arg0 entity-actor))
   "Typically the method that does the initial setup on the process, potentially using the [[entity-actor]] provided as part of that.
-This commonly includes things such as:
-- stack size
-- collision information
-- loading the skeleton group / bones
-- sounds"
+   This commonly includes things such as:
+   - stack size
+   - collision information
+   - loading the skeleton group / bones
+   - sounds"
   (warp-gate-init arg0 (the-as vector #f))
   (none)
   )
@@ -879,8 +860,8 @@ This commonly includes things such as:
 
 ;; failed to figure out what this is:
 (defstate target-warp-out (target)
-  :event (behavior ((proc process) (arg1 int) (event-type symbol) (event event-message-block))
-    (case event-type
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
       (('death-end)
        (let ((v0-0 (the-as object (logior (-> self draw status) (draw-control-status no-draw)))))
          (set! (-> self draw status) (the-as draw-control-status v0-0))
@@ -893,17 +874,17 @@ This commonly includes things such as:
            )
        )
       (else
-        (target-generic-event-handler proc arg1 event-type event)
+        (target-generic-event-handler proc argc message block)
         )
       )
     )
   :enter (behavior ((arg0 vector) (arg1 vector) (arg2 target))
-    (set! (-> self state-time) (-> self clock frame-counter))
+    (set-time! (-> self state-time))
     (logclear! (-> self control status) (collide-status on-surface on-ground touch-surface))
     (set! (-> self control mod-surface) *warp-jump-mods*)
     (set! (-> self control unknown-vector37 quad) (-> arg0 quad))
     (set! (-> self control unknown-vector38 quad) (-> arg1 quad))
-    (set! (-> self control unknown-vector37 y) (+ -4096.0 (-> self control unknown-vector37 y)))
+    (+! (-> self control unknown-vector37 y) -4096.0)
     (set! (-> self control unknown-word04) (the-as uint #f))
     (set! (-> self control unknown-handle02) (the-as handle arg2))
     (vector-reset! (-> self control transv))
@@ -914,15 +895,13 @@ This commonly includes things such as:
       (vector-! (new 'stack-no-clear 'vector) arg1 (-> self control trans))
       (vector-y-quaternion! (new 'stack-no-clear 'vector) (-> self control dir-targ))
       )
-    (none)
     )
   :exit (behavior ()
     (logclear! (-> self state-flags) (state-flags sf6))
-    (none)
     )
   :code (behavior ((arg0 vector) (arg1 vector) (arg2 target))
     (ja-channel-push! 1 (seconds 0.2))
-    (ja-no-eval :group! (-> self draw art-group data 30) :num! (seek! (ja-aframe 16.0 0)) :frame-num 0.0)
+    (ja-no-eval :group! jakb-duck-high-jump-ja :num! (seek! (ja-aframe 16.0 0)) :frame-num 0.0)
     (until (ja-done? 0)
       (suspend)
       (ja :num! (seek! (ja-aframe 16.0 0)))
@@ -962,7 +941,7 @@ This commonly includes things such as:
       (set! (-> v1-20 prim-core collide-with) (collide-spec))
       )
     0
-    (set! (-> self state-time) (-> self clock frame-counter))
+    (set-time! (-> self state-time))
     (set! (-> self trans-hook)
           (lambda :behavior target
             ()
@@ -988,9 +967,9 @@ This commonly includes things such as:
               (set! (-> gp-1 y) 0.0)
               (send-event *target* 'sidekick #f)
               (when (and (or (< (vector-dot gp-1 (-> self control transv)) 0.0) (-> self control unknown-spool-anim00))
-                         (>= (- (-> self clock frame-counter) (-> self state-time)) (seconds 0.05))
+                         (time-elapsed? (-> self state-time) (seconds 0.05))
                          )
-                (vector-seek! (-> self draw color-mult) (new 'static 'vector) (* 2.0 (-> self clock seconds-per-frame)))
+                (vector-seek! (-> self draw color-mult) (new 'static 'vector) (* 2.0 (seconds-per-frame)))
                 (set! (-> self control transv x) (* 0.95 (-> self control transv x)))
                 (set! (-> self control transv z) (* 0.95 (-> self control transv z)))
                 (when (not (-> self control unknown-spool-anim00))
@@ -1004,16 +983,12 @@ This commonly includes things such as:
             (none)
             )
           )
-    (ja-no-eval :group! (-> self draw art-group data 30)
-                :num! (seek! (ja-aframe 40.0 0))
-                :frame-num (ja-aframe 16.0 0)
-                )
+    (ja-no-eval :group! jakb-duck-high-jump-ja :num! (seek! (ja-aframe 40.0 0)) :frame-num (ja-aframe 16.0 0))
     (until (ja-done? 0)
       (suspend)
       (ja :num! (seek! (ja-aframe 40.0 0)))
       )
     (sleep-code)
-    (none)
     )
   :post target-no-stick-post
   )
@@ -1024,7 +999,6 @@ This commonly includes things such as:
   :enter (behavior ((arg0 vector) (arg1 vector) (arg2 target))
     (set! (-> self control did-move-to-pole-or-max-jump-height) (the-as float arg2))
     ((-> target-warp-out enter) arg0 arg1 arg2)
-    (none)
     )
   :exit (-> target-warp-out exit)
   :trans (behavior ()
@@ -1037,7 +1011,6 @@ This commonly includes things such as:
     (if (logtest? (-> self control status) (collide-status on-surface))
         (go target-hit-ground #f)
         )
-    (none)
     )
   :code (behavior ((arg0 vector) (arg1 vector) (arg2 target))
     (let ((a0-1 (-> self control did-move-to-pole-or-max-jump-height)))
@@ -1050,7 +1023,7 @@ This commonly includes things such as:
               (lambda ((arg0 string))
                 (local-vars (a1-2 event-message-block))
                 (with-pp
-                  (add-setting! 'entity-name arg0 0 0)
+                  (add-setting! 'entity-name arg0 0.0 0)
                   (until (send-event-function *camera* a1-2)
                     (suspend)
                     (set! a1-2 (new 'stack-no-clear 'event-message-block))
@@ -1082,8 +1055,8 @@ This commonly includes things such as:
     (ja-channel-set! 0)
     (vector-reset! (-> self control transv))
     (move-to-point! (-> self control) (-> self control unknown-vector37))
-    (let ((s5-1 (-> self clock frame-counter)))
-      (while (or (< (- (-> self clock frame-counter) s5-1) (seconds 1))
+    (let ((s5-1 (current-time)))
+      (while (or (not (time-elapsed? s5-1 (seconds 1)))
                  (< 81920.0 (vector-vector-distance (camera-pos) (-> self control trans)))
                  )
         (suspend)
@@ -1091,7 +1064,7 @@ This commonly includes things such as:
       )
     (set-heading-vec! (-> self control) (-> self control transv))
     (rot->dir-targ! (-> self control))
-    (set! (-> self state-time) (-> self clock frame-counter))
+    (set-time! (-> self state-time))
     (set! (-> self post-hook) target-no-stick-post)
     (ja-channel-set! 1)
     (send-event
@@ -1102,10 +1075,7 @@ This commonly includes things such as:
       )
     (send-event self 'draw #t)
     (sound-play "warpgate-tele")
-    (ja-no-eval :group! (-> self draw art-group data 30)
-                :num! (seek! (ja-aframe 42.0 0))
-                :frame-num (ja-aframe 40.0 0)
-                )
+    (ja-no-eval :group! jakb-duck-high-jump-ja :num! (seek! (ja-aframe 42.0 0)) :frame-num (ja-aframe 40.0 0))
     (until (ja-done? 0)
       (let ((v1-59 (new-stack-vector0)))
         (let ((f0-5 (vector-dot (-> self control dynam gravity-normal) (-> self control transv))))
@@ -1130,10 +1100,7 @@ This commonly includes things such as:
       (suspend)
       (ja :num! (seek! (ja-aframe 42.0 0)))
       )
-    (ja-no-eval :group! (-> self draw art-group data 30)
-                :num! (seek! (ja-aframe 50.0 0))
-                :frame-num (ja-aframe 42.0 0)
-                )
+    (ja-no-eval :group! jakb-duck-high-jump-ja :num! (seek! (ja-aframe 50.0 0)) :frame-num (ja-aframe 42.0 0))
     (until (ja-done? 0)
       (suspend)
       (ja :num! (seek! (ja-aframe 50.0 0)))
@@ -1142,16 +1109,12 @@ This commonly includes things such as:
       (set! (-> v1-80 prim-core collide-as) (-> self control backup-collide-as))
       (set! (-> v1-80 prim-core collide-with) (-> self control backup-collide-with))
       )
-    (ja-no-eval :group! (-> self draw art-group data 30)
-                :num! (seek! (the float (+ (-> (the-as art-joint-anim (-> self draw art-group data 30)) frames num-frames) -1)))
-                :frame-num (ja-aframe 50.0 0)
-                )
+    (ja-no-eval :group! jakb-duck-high-jump-ja :num! (seek!) :frame-num (ja-aframe 50.0 0))
     (until (ja-done? 0)
       (suspend)
       (ja :num! (seek!))
       )
     (target-falling-anim -1 (seconds 0.33))
-    (none)
     )
   :post target-no-move-post
   )
@@ -1166,73 +1129,70 @@ This commonly includes things such as:
 ;; definition of type air-train
 (deftype air-train (warp-gate)
   "NOTE - I guess this is why sometimes the air-train makes the warp-gate sound"
-  ((part-exhaust-left  sparticle-launch-control         :offset-assert 256)
-   (part-exhaust-right sparticle-launch-control         :offset-assert 260)
-   (part-dust          sparticle-launch-control         :offset-assert 264)
-   (dust-y             float                            :offset-assert 268)
-   (hover-sound        sound-id                         :offset-assert 272)
-   (base-pos           vector                   :inline :offset-assert 288)
+  ((part-exhaust-left   sparticle-launch-control)
+   (part-exhaust-right  sparticle-launch-control)
+   (part-dust           sparticle-launch-control)
+   (dust-y              float)
+   (hover-sound         sound-id)
+   (base-pos            vector  :inline)
    )
-  :heap-base #xb0
-  :method-count-assert 26
-  :size-assert         #x130
-  :flag-assert         #x1a00b00130
   )
 
 ;; definition for method 3 of type air-train
-(defmethod inspect air-train ((obj air-train))
-  (when (not obj)
-    (set! obj obj)
+(defmethod inspect ((this air-train))
+  (when (not this)
+    (set! this this)
     (goto cfg-4)
     )
   (let ((t9-0 (method-of-type warp-gate inspect)))
-    (t9-0 obj)
+    (t9-0 this)
     )
-  (format #t "~2Tpart-exhaust-left: ~A~%" (-> obj part-exhaust-left))
-  (format #t "~2Tpart-exhaust-right: ~A~%" (-> obj part-exhaust-right))
-  (format #t "~2Tpart-dust: ~A~%" (-> obj part-dust))
-  (format #t "~2Tdust-y: ~f~%" (-> obj dust-y))
-  (format #t "~2Thover-sound: ~D~%" (-> obj hover-sound))
-  (format #t "~2Tbase-pos: #<vector @ #x~X>~%" (-> obj base-pos))
+  (format #t "~2Tpart-exhaust-left: ~A~%" (-> this part-exhaust-left))
+  (format #t "~2Tpart-exhaust-right: ~A~%" (-> this part-exhaust-right))
+  (format #t "~2Tpart-dust: ~A~%" (-> this part-dust))
+  (format #t "~2Tdust-y: ~f~%" (-> this dust-y))
+  (format #t "~2Thover-sound: ~D~%" (-> this hover-sound))
+  (format #t "~2Tbase-pos: #<vector @ #x~X>~%" (-> this base-pos))
   (label cfg-4)
-  obj
+  this
   )
 
 ;; definition for method 7 of type air-train
 ;; WARN: Return type mismatch warp-gate vs air-train.
-(defmethod relocate air-train ((obj air-train) (arg0 int))
-  (if (nonzero? (-> obj part-exhaust-left))
-      (&+! (-> obj part-exhaust-left) arg0)
+(defmethod relocate ((this air-train) (offset int))
+  (if (nonzero? (-> this part-exhaust-left))
+      (&+! (-> this part-exhaust-left) offset)
       )
-  (if (nonzero? (-> obj part-exhaust-right))
-      (&+! (-> obj part-exhaust-right) arg0)
+  (if (nonzero? (-> this part-exhaust-right))
+      (&+! (-> this part-exhaust-right) offset)
       )
-  (if (nonzero? (-> obj part-dust))
-      (&+! (-> obj part-dust) arg0)
+  (if (nonzero? (-> this part-dust))
+      (&+! (-> this part-dust) offset)
       )
-  (the-as air-train ((method-of-type warp-gate relocate) obj arg0))
+  (the-as air-train ((method-of-type warp-gate relocate) this offset))
   )
 
 ;; definition for method 10 of type air-train
-(defmethod deactivate air-train ((obj air-train))
-  (sound-stop (-> obj hover-sound))
-  (if (nonzero? (-> obj part-exhaust-left))
-      (kill-and-free-particles (-> obj part-exhaust-left))
+(defmethod deactivate ((this air-train))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (sound-stop (-> this hover-sound))
+  (if (nonzero? (-> this part-exhaust-left))
+      (kill-and-free-particles (-> this part-exhaust-left))
       )
-  (if (nonzero? (-> obj part-exhaust-right))
-      (kill-and-free-particles (-> obj part-exhaust-right))
+  (if (nonzero? (-> this part-exhaust-right))
+      (kill-and-free-particles (-> this part-exhaust-right))
       )
-  (if (nonzero? (-> obj part-dust))
-      (kill-and-free-particles (-> obj part-dust))
+  (if (nonzero? (-> this part-dust))
+      (kill-and-free-particles (-> this part-dust))
       )
-  ((method-of-type warp-gate deactivate) obj)
+  ((method-of-type warp-gate deactivate) this)
   (none)
   )
 
 ;; definition for method 23 of type air-train
 ;; WARN: Return type mismatch draw-control vs none.
-(defmethod init-skel-and-collide air-train ((obj air-train))
-  (let ((s5-0 (new 'process 'collide-shape-moving obj (collide-list-enum usually-hit-by-player))))
+(defmethod init-skel-and-collide ((this air-train))
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
     (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
     (set! (-> s5-0 reaction) cshape-reaction-default)
     (set! (-> s5-0 no-reaction)
@@ -1267,10 +1227,10 @@ This commonly includes things such as:
       (set! (-> s5-0 backup-collide-as) (-> v1-18 prim-core collide-as))
       (set! (-> s5-0 backup-collide-with) (-> v1-18 prim-core collide-with))
       )
-    (set! (-> obj root-override) s5-0)
+    (set! (-> this root) s5-0)
     )
   (initialize-skeleton
-    obj
+    this
     (the-as skeleton-group (art-group-get-by-name *level* "skel-air-train" (the-as (pointer uint32) #f)))
     (the-as pair 0)
     )
@@ -1280,30 +1240,30 @@ This commonly includes things such as:
 ;; definition for method 24 of type air-train
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch sound-id vs none.
-(defmethod setup-fields air-train ((obj air-train))
+(defmethod setup-fields ((this air-train))
   (let ((t9-0 (method-of-type warp-gate setup-fields)))
-    (t9-0 obj)
+    (t9-0 this)
     )
-  (set! (-> obj base-pos quad) (-> obj root-override trans quad))
-  (let ((v1-2 (-> obj level-name)))
-    (set! (-> obj dust-y) (cond
-                            ((= v1-2 'nest)
-                             -1105.92
-                             )
-                            ((= v1-2 'caspad)
-                             114647.04
-                             )
-                            (else
-                              (the-as float #x7f800000)
+  (set! (-> this base-pos quad) (-> this root trans quad))
+  (let ((v1-2 (-> this level-name)))
+    (set! (-> this dust-y) (cond
+                             ((= v1-2 'nest)
+                              -1105.92
                               )
-                            )
+                             ((= v1-2 'caspad)
+                              114647.04
+                              )
+                             (else
+                               (the-as float #x7f800000)
+                               )
+                             )
           )
     )
-  (set! (-> obj part-exhaust-left) (create-launch-control (-> *part-group-id-table* 134) obj))
-  (set! (-> obj part-exhaust-right) (create-launch-control (-> *part-group-id-table* 134) obj))
-  (set! (-> obj part-dust) (create-launch-control (-> *part-group-id-table* 132) obj))
-  (set! (-> obj root-override pause-adjust-distance) 368640.0)
-  (set! (-> obj hover-sound) (sound-play "air-train"))
+  (set! (-> this part-exhaust-left) (create-launch-control (-> *part-group-id-table* 134) this))
+  (set! (-> this part-exhaust-right) (create-launch-control (-> *part-group-id-table* 134) this))
+  (set! (-> this part-dust) (create-launch-control (-> *part-group-id-table* 132) this))
+  (set! (-> this root pause-adjust-distance) 368640.0)
+  (set! (-> this hover-sound) (sound-play "air-train"))
   (none)
   )
 
@@ -1316,25 +1276,23 @@ This commonly includes things such as:
           ((the-as (function none) t9-0))
           )
       )
-    (set! (-> self root-override trans y)
-          (+ (-> self base-pos y)
-             (* 696.32 (cos (* 66.19798 (the float (mod (-> self clock frame-counter) 990)))))
-             (* 450.56 (cos (* 42.25403 (the float (mod (-> self clock frame-counter) 1551)))))
-             )
+    (set! (-> self root trans y) (+ (-> self base-pos y)
+                                    (* 696.32 (cos (* 66.19798 (the float (mod (current-time) 990)))))
+                                    (* 450.56 (cos (* 42.25403 (the float (mod (current-time) 1551)))))
+                                    )
           )
-    (spawn-with-cspace (-> self part-exhaust-left) (-> self node-list data 5))
-    (spawn-with-cspace (-> self part-exhaust-right) (-> self node-list data 6))
+    (spawn-with-cspace (-> self part-exhaust-left) (joint-node air-train-lod0-jg thruster_l))
+    (spawn-with-cspace (-> self part-exhaust-right) (joint-node air-train-lod0-jg thruster_r))
     (let ((f0-9 (-> self dust-y)))
       (when (!= f0-9 (the-as float #x7f800000))
         (let ((a1-2 (new 'stack-no-clear 'vector)))
-          (set! (-> a1-2 quad) (-> self root-override trans quad))
+          (set! (-> a1-2 quad) (-> self root trans quad))
           (set! (-> a1-2 y) f0-9)
           (spawn (-> self part-dust) a1-2)
           )
         )
       )
-    (sound-play "air-train" :id (-> self hover-sound) :position (-> self root-override trans))
-    (none)
+    (sound-play "air-train" :id (-> self hover-sound) :position (-> self root trans))
     )
   )
 
@@ -1343,24 +1301,20 @@ This commonly includes things such as:
   :virtual #t
   :code (behavior ((arg0 continue-point))
     (kill-current-talker (the-as symbol '()) '() 'exit)
-    (set! (-> self state-time) (-> self clock frame-counter))
+    (set-time! (-> self state-time))
     (logclear! (-> self mask) (process-mask actor-pause))
     (when (not arg0)
       (process-release? *target*)
       (go-virtual idle)
       )
-    (set-setting! 'allow-progress #f 0 0)
+    (set-setting! 'allow-progress #f 0.0 0)
     (set! (-> *setting-control* user-default border-mode) #t)
     (set! (-> *level* play?) #t)
     (apply-settings *setting-control*)
     (sound-stop (-> self hover-sound))
     (set! (-> self hover-sound) (new 'static 'sound-id))
-    (eval!
-      (new 'stack 'script-context (the-as basic (process->ppointer self)) self (the-as vector #f))
-      (-> self on-activate)
-      )
+    (script-eval (-> self on-activate))
     (sleep-code)
-    (none)
     )
   )
 
@@ -1369,7 +1323,7 @@ This commonly includes things such as:
                    :name "city-air-train-in-caspad"
                    :extra #f
                    :info #f
-                   :mask-to-clear #x1282000
+                   :mask-to-clear (process-mask movie enemy platform projectile)
                    :entity "scene-stage-87"
                    :art-group "scenecamera"
                    :anim "city-air-train-in-caspad"
@@ -1494,7 +1448,7 @@ This commonly includes things such as:
                    :name "city-air-train-in-nest"
                    :extra #f
                    :info #f
-                   :mask-to-clear #x1282000
+                   :mask-to-clear (process-mask movie enemy platform projectile)
                    :entity "scene-stage-87"
                    :art-group "scenecamera"
                    :anim "city-air-train-in-nest"
@@ -1619,7 +1573,7 @@ This commonly includes things such as:
                    :name "city-air-train-out"
                    :extra #f
                    :info #f
-                   :mask-to-clear #x1282000
+                   :mask-to-clear (process-mask movie enemy platform projectile)
                    :entity "scene-stage-87"
                    :art-group "scenecamera"
                    :anim "city-air-train-out"
@@ -1745,7 +1699,7 @@ This commonly includes things such as:
     :name "city-ashelin-drop-off"
     :extra #f
     :info #f
-    :mask-to-clear #x1282000
+    :mask-to-clear (process-mask movie enemy platform projectile)
     :entity "scene-stage-87"
     :art-group "scenecamera"
     :anim "city-ashelin-drop-off"
@@ -1912,7 +1866,7 @@ This commonly includes things such as:
                    :name "caspad-air-train-in"
                    :extra #f
                    :info #f
-                   :mask-to-clear #x1282000
+                   :mask-to-clear (process-mask movie enemy platform projectile)
                    :entity "air-train-3"
                    :art-group "scenecamera"
                    :anim "caspad-air-train-in"
@@ -2056,160 +2010,174 @@ This commonly includes things such as:
                  )
 
 ;; failed to figure out what this is:
-(scene-method-16 (new 'static 'scene
-                   :name "caspad-air-train-out"
-                   :extra #f
-                   :info #f
-                   :mask-to-clear #x1282000
-                   :entity "air-train-3"
-                   :art-group "scenecamera"
-                   :anim "caspad-air-train-out"
-                   :parts 3
-                   :command-list '((0
-                       (kill "air-train-3")
-                       (fadein (frame-time-30 (new 'static 'bfloat :data 10.0)))
-                       (part-tracker
-                         "group-airtrain-thruster"
-                         entity
-                         "air-train"
-                         joint
-                         "thruster_l"
-                         track
-                         #t
-                         duration
-                         (frame-range 0 195)
-                         )
-                       (part-tracker
-                         "group-airtrain-thruster"
-                         entity
-                         "air-train"
-                         joint
-                         "thruster_r"
-                         track
-                         #t
-                         duration
-                         (frame-range 0 195)
-                         )
-                       )
-                     (80 (part-tracker
-                           "group-airtrain-dust-plume"
-                           entity
-                           "particleman"
-                           joint
-                           "particleA"
-                           track
-                           #t
-                           duration
-                           (frame-range 80 190)
-                           )
-                         )
-                     (180
-                       (part-tracker
-                         "group-airtrain-thruster-off"
-                         entity
-                         "air-train"
-                         joint
-                         "thruster_l"
-                         track
-                         #t
-                         duration
-                         (frame-range 180 295)
-                         )
-                       (part-tracker
-                         "group-airtrain-thruster-off"
-                         entity
-                         "air-train"
-                         joint
-                         "thruster_r"
-                         track
-                         #t
-                         duration
-                         (frame-range 180 295)
-                         )
-                       )
-                     (285 (fadeout (frame-time-30 (new 'static 'bfloat :data 10.0))))
-                     (10000 (apply <lambda at L1>))
-                     )
-                   :cut-list '(180)
-                   :wait-ground-time (seconds 1)
-                   :draw-target #f
-                   :abort #t
-                   :actor (new 'static 'boxed-array :type scene-actor
-                     (new 'static 'scene-actor
-                       :name "scenecamera"
-                       :level #f
-                       :art-group "skel-scenecamera"
-                       :prefix ""
-                       :draw-frames '((min max))
-                       :scissor-frames '()
-                       :camera 4
-                       :shadow-flags -1
-                       :shadow-volume-joint #f
-                       )
-                     (new 'static 'scene-actor
-                       :name "sidekick-highres"
-                       :level 'caspad
-                       :art-group "skel-sidekick-highres"
-                       :prefix ""
-                       :draw-frames '((min max))
-                       :scissor-frames '()
-                       :flags #x1
-                       :shadow-flags -1
-                       :shadow-volume-joint #f
-                       )
-                     (new 'static 'scene-actor
-                       :name "jak-highres"
-                       :level 'caspad
-                       :art-group "skel-jak-highres"
-                       :prefix ""
-                       :draw-frames '((min max))
-                       :scissor-frames '()
-                       :flags #x1
-                       :shadow-flags -1
-                       :shadow-volume-joint #f
-                       )
-                     (new 'static 'scene-actor
-                       :name "air-train"
-                       :level 'caspad
-                       :art-group "skel-air-train"
-                       :prefix ""
-                       :draw-frames '((min max))
-                       :scissor-frames '()
-                       :flags #x1
-                       :shadow-flags -1
-                       :shadow-volume-joint #f
-                       )
-                     (new 'static 'scene-actor
-                       :name "particleman"
-                       :level 'caspad
-                       :art-group "skel-particleman"
-                       :prefix ""
-                       :draw-frames '((min max))
-                       :scissor-frames '()
-                       :flags #x1
-                       :shadow-flags -1
-                       :shadow-volume-joint #f
-                       )
-                     )
-                   :load-point-obj "caspad-warp"
-                   :end-point-obj "caspad-warp"
-                   :borrow '()
-                   :sfx-volume -1.0
-                   :ambient-volume -1.0
-                   :music-volume -1.0
-                   :blackout-end #t
-                   :peaceful #t
-                   :music-delay 1500.0
-                   :save #t
+(scene-method-16
+  (new 'static 'scene
+    :name "caspad-air-train-out"
+    :extra #f
+    :info #f
+    :mask-to-clear (process-mask movie enemy platform projectile)
+    :entity "air-train-3"
+    :art-group "scenecamera"
+    :anim "caspad-air-train-out"
+    :parts 3
+    :command-list '((0
+        (kill "air-train-3")
+        (fadein (frame-time-30 (new 'static 'bfloat :data 10.0)))
+        (part-tracker
+          "group-airtrain-thruster"
+          entity
+          "air-train"
+          joint
+          "thruster_l"
+          track
+          #t
+          duration
+          (frame-range 0 195)
+          )
+        (part-tracker
+          "group-airtrain-thruster"
+          entity
+          "air-train"
+          joint
+          "thruster_r"
+          track
+          #t
+          duration
+          (frame-range 0 195)
+          )
+        )
+      (80
+        (part-tracker
+          "group-airtrain-dust-plume"
+          entity
+          "particleman"
+          joint
+          "particleA"
+          track
+          #t
+          duration
+          (frame-range 80 190)
+          )
+        )
+      (180
+        (part-tracker
+          "group-airtrain-thruster-off"
+          entity
+          "air-train"
+          joint
+          "thruster_l"
+          track
+          #t
+          duration
+          (frame-range 180 295)
+          )
+        (part-tracker
+          "group-airtrain-thruster-off"
+          entity
+          "air-train"
+          joint
+          "thruster_r"
+          track
+          #t
+          duration
+          (frame-range 180 295)
+          )
+        )
+      (285 (fadeout (frame-time-30 (new 'static 'bfloat :data 10.0))))
+      (10000
+        (apply
+          ,(lambda :behavior scene-player
+             ()
+             (set! (-> self scene end-point-obj) (if (task-node-closed? (game-task-node castle-break-in-introduction))
+                                                     "caspad-face-castle"
+                                                     "caspad-warp"
+                                                     )
                    )
-                 )
+             (none)
+             )
+          )
+        )
+      )
+    :cut-list '(180)
+    :wait-ground-time (seconds 1)
+    :draw-target #f
+    :abort #t
+    :actor (new 'static 'boxed-array :type scene-actor
+      (new 'static 'scene-actor
+        :name "scenecamera"
+        :level #f
+        :art-group "skel-scenecamera"
+        :prefix ""
+        :draw-frames '((min max))
+        :scissor-frames '()
+        :camera 4
+        :shadow-flags -1
+        :shadow-volume-joint #f
+        )
+      (new 'static 'scene-actor
+        :name "sidekick-highres"
+        :level 'caspad
+        :art-group "skel-sidekick-highres"
+        :prefix ""
+        :draw-frames '((min max))
+        :scissor-frames '()
+        :flags #x1
+        :shadow-flags -1
+        :shadow-volume-joint #f
+        )
+      (new 'static 'scene-actor
+        :name "jak-highres"
+        :level 'caspad
+        :art-group "skel-jak-highres"
+        :prefix ""
+        :draw-frames '((min max))
+        :scissor-frames '()
+        :flags #x1
+        :shadow-flags -1
+        :shadow-volume-joint #f
+        )
+      (new 'static 'scene-actor
+        :name "air-train"
+        :level 'caspad
+        :art-group "skel-air-train"
+        :prefix ""
+        :draw-frames '((min max))
+        :scissor-frames '()
+        :flags #x1
+        :shadow-flags -1
+        :shadow-volume-joint #f
+        )
+      (new 'static 'scene-actor
+        :name "particleman"
+        :level 'caspad
+        :art-group "skel-particleman"
+        :prefix ""
+        :draw-frames '((min max))
+        :scissor-frames '()
+        :flags #x1
+        :shadow-flags -1
+        :shadow-volume-joint #f
+        )
+      )
+    :load-point-obj "caspad-warp"
+    :end-point-obj "caspad-warp"
+    :borrow '()
+    :sfx-volume -1.0
+    :ambient-volume -1.0
+    :music-volume -1.0
+    :blackout-end #t
+    :peaceful #t
+    :music-delay 1500.0
+    :save #t
+    )
+  )
 
 ;; failed to figure out what this is:
 (scene-method-16 (new 'static 'scene
                    :name "nest-air-train-in"
                    :extra #f
                    :info #f
-                   :mask-to-clear #x1282000
+                   :mask-to-clear (process-mask movie enemy platform projectile)
                    :entity "scene-stage-90"
                    :art-group "scenecamera"
                    :anim "nest-air-train-in"
@@ -2356,7 +2324,7 @@ This commonly includes things such as:
                    :name "nest-air-train-out"
                    :extra #f
                    :info #f
-                   :mask-to-clear #x1282000
+                   :mask-to-clear (process-mask movie enemy platform projectile)
                    :entity "scene-stage-90"
                    :art-group "scenecamera"
                    :anim "nest-air-train-out"

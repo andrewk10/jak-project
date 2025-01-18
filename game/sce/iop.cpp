@@ -83,6 +83,16 @@ void* AllocSysMemory(int type, unsigned long size, void* addr) {
 }
 
 /*!
+ * Allocate the 1 kB scratchpad memory. On PS2, this would give you a pointer to the actual
+ * scratchpad of the IOP, but this is just normal memory.
+ */
+void* AllocScratchPad(int mode) {
+  ASSERT(mode == 0);
+  constexpr int kScratchpadSize = 1024 * 16;
+  return iop->iop_alloc(kScratchpadSize);
+}
+
+/*!
  * Create a new thread
  */
 s32 CreateThread(ThreadParam* param) {
@@ -123,12 +133,14 @@ void sceSifRegisterRpc(sceSifServeData* serve,
                        unsigned int request,
                        sceSifRpcFunc func,
                        void* buff,
+                       int buff_size,
                        sceSifRpcFunc cfunc,
                        void* cbuff,
                        sceSifQueueData* qd) {
   serve->command = request;
   serve->func = func;
   serve->buff = buff;
+  serve->buff_size = buff_size;
   (void)cfunc;
   (void)cbuff;
   ASSERT(!cfunc);
@@ -138,12 +150,6 @@ void sceSifRegisterRpc(sceSifServeData* serve,
 
 void sceSifRpcLoop(sceSifQueueData* pd) {
   iop->kernel.rpc_loop(pd);
-}
-
-int sceCdRead(uint32_t logical_sector, uint32_t sectors, void* buf, sceCdRMode* mode) {
-  (void)mode;
-  iop->kernel.read_disc_sectors(logical_sector, sectors, buf);
-  return 1;
 }
 
 int sceCdSync(int mode) {
@@ -166,6 +172,10 @@ int sceCdMmode(int media) {
 
 void DelayThread(u32 usec) {
   iop->kernel.DelayThread(usec);
+}
+
+void YieldThread() {
+  iop->kernel.YieldThread();
 }
 
 int sceCdBreak() {
@@ -193,12 +203,20 @@ s32 PollMbx(MsgPacket** recvmsg, int mbxid) {
   return iop->kernel.PollMbx((void**)recvmsg, mbxid);
 }
 
-static int now = 0;
+s32 ReceiveMbx(MsgPacket** recvmsg, int mbxid) {
+  return iop->kernel.ReceiveMbx((void**)recvmsg, mbxid);
+}
 
-void GetSystemTime(SysClock* time) {
-  time->lo = 0;
-  time->hi = now;
-  now += 10;
+s32 PeekMbx(s32 mbx) {
+  return iop->kernel.PeekMbx(mbx);
+}
+
+s32 MbxSize(s32 mbx) {
+  return iop->kernel.MbxSize(mbx);
+}
+
+u32 GetSystemTimeLow() {
+  return iop->kernel.GetSystemTimeLow();
 }
 
 void SleepThread() {
@@ -206,7 +224,7 @@ void SleepThread() {
 }
 
 s32 CreateSema(SemaParam* param) {
-  return iop->kernel.CreateSema(param->attr, param->option, param->max_count, param->init_count);
+  return iop->kernel.CreateSema(param->attr, param->option, param->init_count, param->max_count);
 }
 
 s32 WaitSema(s32 sema) {
@@ -221,8 +239,29 @@ s32 PollSema(s32 sema) {
   return iop->kernel.PollSema(sema);
 }
 
+s32 CreateEventFlag(const EventFlagParam* param) {
+  return iop->kernel.CreateEventFlag(param->attr, param->option, param->init_pattern);
+}
+
+s32 ClearEventFlag(s32 flag, u32 pattern) {
+  return iop->kernel.ClearEventFlag(flag, pattern);
+}
+
+s32 WaitEventFlag(s32 flag, u32 pattern, u32 mode) {
+  return iop->kernel.WaitEventFlag(flag, pattern, mode);
+}
+
+s32 SetEventFlag(s32 flag, u32 pattern) {
+  return iop->kernel.SetEventFlag(flag, pattern);
+}
+
 s32 WakeupThread(s32 thid) {
   iop->kernel.WakeupThread(thid);
+  return 0;
+}
+
+s32 iWakeupThread(s32 thid) {
+  iop->kernel.iWakeupThread(thid);
   return 0;
 }
 

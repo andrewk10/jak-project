@@ -1,23 +1,17 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-(import "goal_src/jak1/import/assistant-firecanyon-ag.gc")
-
 ;; definition of type assistant-firecanyon
 (deftype assistant-firecanyon (process-taskable)
   ()
-  :heap-base #x110
-  :method-count-assert 53
-  :size-assert         #x17c
-  :flag-assert         #x350110017c
   )
 
 ;; definition for method 3 of type assistant-firecanyon
-(defmethod inspect assistant-firecanyon ((obj assistant-firecanyon))
+(defmethod inspect ((this assistant-firecanyon))
   (let ((t9-0 (method-of-type process-taskable inspect)))
-    (t9-0 obj)
+    (t9-0 this)
     )
-  obj
+  this
   )
 
 ;; failed to figure out what this is:
@@ -28,11 +22,11 @@
               )
 
 ;; definition for method 32 of type assistant-firecanyon
-(defmethod play-anim! assistant-firecanyon ((obj assistant-firecanyon) (arg0 symbol))
-  (case (current-status (-> obj tasks))
+(defmethod play-anim! ((this assistant-firecanyon) (arg0 symbol))
+  (case (current-status (-> this tasks))
     (((task-status need-reward-speech))
      (if arg0
-         (close-current! (-> obj tasks))
+         (close-current! (-> this tasks))
          )
      (new 'static 'spool-anim
        :name "assistant-firecanyon-resolution"
@@ -59,20 +53,20 @@
           (format
             0
             "ERROR: <GMJ>: ~S playing anim for task status ~S~%"
-            (-> obj name)
-            (task-status->string (current-status (-> obj tasks)))
+            (-> this name)
+            (task-status->string (current-status (-> this tasks)))
             )
           )
-      (-> obj draw art-group data 3)
+      (-> this draw art-group data 3)
       )
     )
   )
 
 ;; definition for method 31 of type assistant-firecanyon
-(defmethod get-art-elem assistant-firecanyon ((obj assistant-firecanyon))
-  (if (= (current-status (-> obj tasks)) (task-status invalid))
-      (-> obj draw art-group data 8)
-      (-> obj draw art-group data 3)
+(defmethod get-art-elem ((this assistant-firecanyon))
+  (if (= (current-status (-> this tasks)) (task-status invalid))
+      (-> this draw art-group data 8)
+      (-> this draw art-group data 3)
       )
   )
 
@@ -82,11 +76,11 @@
   :trans (behavior ()
     ((-> (method-of-type process-taskable hidden) trans))
     (when (and (cond
-                 ((and *target* (>= 61440.0 (vector-vector-distance (-> self root-override trans) (-> *target* control trans))))
+                 ((and *target* (>= 61440.0 (vector-vector-distance (-> self root trans) (-> *target* control trans))))
                   #t
                   )
                  (else
-                   (set! (-> self state-time) (-> *display* base-frame-counter))
+                   (set-time! (-> self state-time))
                    #f
                    )
                  )
@@ -94,12 +88,12 @@
                     (not (movie?))
                     (not (level-hint-displayed?))
                     (not (and *cheat-mode* (cpad-hold? 0 l3)))
-                    (< (- (-> *display* base-frame-counter) (-> self state-time)) (seconds 10))
+                    (not (time-elapsed? (-> self state-time) (seconds 10)))
                     )
                )
       (hide-hud)
       (kill-current-level-hint '() '(sidekick voicebox) 'exit)
-      (when (and (seen-text? *game-info* (game-text-id firecanyon-need-cells))
+      (when (and (seen-text? *game-info* (text-id firecanyon-need-cells))
                  (hud-hidden?)
                  (can-grab-display? self)
                  (not (-> *setting-control* current hint))
@@ -118,18 +112,17 @@
             (set! (-> v1-28 scale) 0.8)
             )
           (set! (-> gp-0 flags) (font-flags shadow kerning middle large))
-          (print-game-text (lookup-text! *common-text* (game-text-id firecanyon-need-cells-text) #f) gp-0 #f 128 22)
+          (print-game-text (lookup-text! *common-text* (text-id firecanyon-need-cells-text) #f) gp-0 #f 128 22)
           )
         )
       (level-hint-spawn
-        (game-text-id firecanyon-need-cells)
+        (text-id firecanyon-need-cells)
         "asstvb09"
         (the-as entity #f)
         *entity-pool*
         (game-task none)
         )
       )
-    (none)
     )
   )
 
@@ -255,21 +248,20 @@
           )
         )
       )
-    (none)
     )
   )
 
 ;; definition for method 39 of type assistant-firecanyon
-(defmethod should-display? assistant-firecanyon ((obj assistant-firecanyon))
-  (first-any (-> obj tasks) #t)
-  (= (current-status (-> obj tasks)) (task-status need-reward-speech))
+(defmethod should-display? ((this assistant-firecanyon))
+  (first-any (-> this tasks) #t)
+  (= (current-status (-> this tasks)) (task-status need-reward-speech))
   )
 
 ;; definition for method 11 of type assistant-firecanyon
-(defmethod init-from-entity! assistant-firecanyon ((obj assistant-firecanyon) (arg0 entity-actor))
-  (dummy-40 obj arg0 *assistant-firecanyon-sg* 3 29 (new 'static 'vector :w 4096.0) 5)
-  (set! (-> obj tasks) (get-task-control (game-task firecanyon-assistant)))
-  (first-any (-> obj tasks) #t)
-  (dummy-42 obj)
+(defmethod init-from-entity! ((this assistant-firecanyon) (arg0 entity-actor))
+  (process-taskable-method-40 this arg0 *assistant-firecanyon-sg* 3 29 (new 'static 'vector :w 4096.0) 5)
+  (set! (-> this tasks) (get-task-control (game-task firecanyon-assistant)))
+  (first-any (-> this tasks) #t)
+  (process-taskable-method-42 this)
   (none)
   )

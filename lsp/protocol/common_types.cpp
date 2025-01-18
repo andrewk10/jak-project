@@ -9,6 +9,11 @@ void LSPSpec::from_json(const json& j, Position& obj) {
   j.at("character").get_to(obj.m_character);
 }
 
+LSPSpec::Range::Range(Position start, Position end) : m_start(start), m_end(end) {}
+
+LSPSpec::Range::Range(uint32_t line, uint32_t character)
+    : m_start({line, character}), m_end({line, character}) {}
+
 void LSPSpec::to_json(json& j, const Range& obj) {
   // TODO - not sure if this works yet, but nice if it does!
   j = json{{"start", obj.m_start}, {"end", obj.m_end}};
@@ -66,4 +71,37 @@ void LSPSpec::to_json(json& j, const TextDocumentPositionParams& obj) {
 void LSPSpec::from_json(const json& j, TextDocumentPositionParams& obj) {
   j.at("textDocument").get_to(obj.m_textDocument);
   j.at("position").get_to(obj.m_position);
+}
+
+void LSPSpec::to_json(json& j, const MarkupContent& obj) {
+  j = json{{"kind", obj.m_kind}, {"value", obj.m_value}};
+}
+
+void LSPSpec::from_json(const json& j, MarkupContent& obj) {
+  j.at("kind").get_to(obj.m_kind);
+  j.at("value").get_to(obj.m_value);
+}
+
+void LSPSpec::to_json(json& j, const Color& obj) {
+  json_serialize(red);
+  json_serialize(green);
+  json_serialize(blue);
+  json_serialize(alpha);
+}
+
+void LSPSpec::from_json(const json& j, Color& obj) {
+  json_deserialize_if_exists(red);
+  json_deserialize_if_exists(green);
+  json_deserialize_if_exists(blue);
+  json_deserialize_if_exists(alpha);
+}
+
+void LSPSpec::to_json(json& j, const TextEdit& obj) {
+  json_serialize(range);
+  json_serialize(newText);
+}
+
+void LSPSpec::from_json(const json& j, TextEdit& obj) {
+  json_deserialize_if_exists(range);
+  json_deserialize_if_exists(newText);
 }

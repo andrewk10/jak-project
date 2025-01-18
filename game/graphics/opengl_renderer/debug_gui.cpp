@@ -1,12 +1,17 @@
-
 #include "debug_gui.h"
 
-#include <algorithm>
+#include "common/global_profiler/GlobalProfiler.h"
+#include "common/util/string_util.h"
 
+#include "game/graphics/display.h"
 #include "game/graphics/gfx.h"
-#include "game/kernel/svnrev.h"
+#include "game/graphics/screenshot.h"
+#include "game/overlord/jak3/dma.h"
+#include "game/system/hid/sdl_util.h"
 
+#include "fmt/core.h"
 #include "third-party/imgui/imgui.h"
+#include "third-party/imgui/imgui_style.h"
 
 void FrameTimeRecorder::finish_frame() {
   m_frame_times[m_idx++] = m_compute_timer.getMs();
@@ -94,59 +99,137 @@ void OpenGlDebugGui::finish_frame() {
 
 void OpenGlDebugGui::draw(const DmaStats& dma_stats) {
   if (ImGui::BeginMainMenuBar()) {
-    if (ImGui::BeginMenu("Windows")) {
+    if (ImGui::BeginMenu("Debugging")) {
       ImGui::MenuItem("Frame Time Plot", nullptr, &m_draw_frame_time);
       ImGui::MenuItem("Render Debug", nullptr, &m_draw_debug);
       ImGui::MenuItem("Profiler", nullptr, &m_draw_profiler);
       ImGui::MenuItem("Small Profiler", nullptr, &small_profiler);
       ImGui::MenuItem("Loader", nullptr, &m_draw_loader);
+      ImGui::MenuItem("Overlord", nullptr, &m_draw_overlord);
+      if (ImGui::MenuItem("Reboot In Debug Mode!")) {
+        want_reboot_in_debug = true;
+      }
       ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("Tools")) {
-      ImGui::MenuItem("Subtitle Editor", nullptr, &m_subtitle_editor);
-      ImGui::MenuItem("Filters", nullptr, &m_filters_menu);
-      ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Screenshot")) {
-      ImGui::MenuItem("Screenshot Next Frame!", nullptr, &m_want_screenshot);
-      ImGui::InputText("File", m_screenshot_save_name, 50);
-      ImGui::InputInt("Width", &screenshot_width);
-      ImGui::InputInt("Height", &screenshot_height);
-      ImGui::InputInt("MSAA", &screenshot_samples);
-      ImGui::Checkbox("Screenshot on f2", &screenshot_hotkey_enabled);
-      ImGui::EndMenu();
-    }
-
-    if (ImGui::BeginMenu("Frame Rate")) {
-      ImGui::Checkbox("Framelimiter", &Gfx::g_global_settings.framelimiter);
-      ImGui::InputFloat("Target FPS", &target_fps_input);
-      if (ImGui::MenuItem("Apply")) {
-        Gfx::g_global_settings.target_fps = target_fps_input;
+      if (ImGui::BeginMenu("Screenshot")) {
+        ImGui::MenuItem("Screenshot Next Frame!", nullptr, &m_want_screenshot);
+        ImGui::InputText("File", g_screen_shot_settings->name,
+                         sizeof(g_screen_shot_settings->name));
+        ImGui::InputInt("Width", &g_screen_shot_settings->width);
+        ImGui::InputInt("Height", &g_screen_shot_settings->height);
+        ImGui::InputInt("MSAA", &g_screen_shot_settings->msaa);
+        ImGui::Checkbox("Quick-Screenshot on F2", &screenshot_hotkey_enabled);
+        ImGui::EndMenu();
       }
-      ImGui::Separator();
-      ImGui::Checkbox("Accurate Lag Mode", &Gfx::g_global_settings.experimental_accurate_lag);
-      ImGui::Checkbox("Sleep in Frame Limiter", &Gfx::g_global_settings.sleep_in_frame_limiter);
+      ImGui::MenuItem("Subtitle Editor", nullptr, &m_subtitle_editor);
+      ImGui::MenuItem("Debug Text Filter", nullptr, &m_filters_menu);
+      ImGui::EndMenu();
+    }
+
+    if (ImGui::BeginMenu("Settings")) {
+      if (ImGui::TreeNode("ImGui Styling (restart required for these)")) {
+        ImGui::InputInt("Font Size", &Gfx::g_debug_settings.imgui_font_size);
+        ImGui::Checkbox("Monospaced Font", &Gfx::g_debug_settings.monospaced_font);
+        if (ImGui::Checkbox("Alternate Style", &Gfx::g_debug_settings.alternate_style)) {
+          if (Gfx::g_debug_settings.alternate_style) {
+            ImGui::applyAlternateStyle();
+          } else {
+            ImGui::applyClassicStyle();
+          }
+        }
+        ImGui::TreePop();
+      }
+      ImGui::Checkbox("Ignore Hide ImGui Bind", &Gfx::g_debug_settings.ignore_hide_imgui);
+      if (ImGui::TreeNode("Frame Rate")) {
+        ImGui::Checkbox("Framelimiter", &Gfx::g_global_settings.framelimiter);
+        ImGui::InputFloat("Target FPS", &target_fps_input);
+        if (ImGui::MenuItem("Apply")) {
+          Gfx::g_global_settings.target_fps = target_fps_input;
+        }
+        ImGui::Separator();
+        ImGui::Checkbox("Accurate Lag Mode", &Gfx::g_global_settings.experimental_accurate_lag);
+        ImGui::Checkbox("Sleep in Frame Limiter", &Gfx::g_global_settings.sleep_in_frame_limiter);
+        ImGui::TreePop();
+      }
+      ImGui::Checkbox("Treat Pad0 as Pad1", &Gfx::g_debug_settings.treat_pad0_as_pad1);
+      auto is_keyboard_enabled =
+          Display::GetMainDisplay()->get_input_manager()->is_keyboard_enabled();
+      if (ImGui::Checkbox("Enable Keyboard (forced on if no controllers detected)",
+                          &is_keyboard_enabled)) {
+        Display::GetMainDisplay()->get_input_manager()->enable_keyboard(is_keyboard_enabled);
+      }
       ImGui::EndMenu();
     }
 
     if (ImGui::BeginMenu("Event Profiler")) {
-      ImGui::Checkbox("Record", &record_events);
-      ImGui::MenuItem("Dump to file", nullptr, &dump_events);
+      if (ImGui::Checkbox("Record Events", &record_events)) {
+        prof().set_enable(record_events);
+      }
+      ImGui::SameLine();
+      ImGui::Text("%s",
+                  fmt::format("({}/{})", prof().get_next_idx(), prof().get_max_events()).c_str());
+      ImGui::InputInt("Event Buffer Size", &max_event_buffer_size);
+      if (ImGui::Button("Resize")) {
+        prof().update_event_buffer_size(max_event_buffer_size);
+      }
+      if (ImGui::Button("Reset Events")) {
+        prof().clear();
+      }
+      ImGui::Separator();
+      ImGui::Checkbox("Enable Compression", &prof().m_enable_compression);
+      if (ImGui::Button("Dump to File")) {
+        record_events = false;
+        prof().dump_to_json();
+      }
+      // if (ImGui::Button("Open dump folder")) {
+      //  // TODO - https://github.com/mlabbe/nativefiledialog
+      // }
       ImGui::EndMenu();
     }
 
-    if (ImGui::BeginMenu("Debug Mode")) {
-      if (ImGui::MenuItem("Reboot now!")) {
-        want_reboot_in_debug = true;
+    if (!Gfx::g_debug_settings.ignore_hide_imgui) {
+      std::string button_text =
+          fmt::format("Click here or Press {} to hide Toolbar",
+                      sdl_util::get_keyboard_button_name(Gfx::g_debug_settings.hide_imgui_key,
+                                                         InputModifiers()));
+
+      ImVec2 text_size = ImGui::CalcTextSize(button_text.c_str());
+      float button_width = text_size.x + ImGui::GetStyle().FramePadding.x * 2;
+      float button_height = text_size.y + ImGui::GetStyle().FramePadding.y * 2;
+
+      ImGui::PushStyleColor(ImGuiCol_Header, ImGui::GetStyleColorVec4(ImGuiCol_MenuBarBg));
+      ImGui::PushStyleColor(ImGuiCol_HeaderHovered,
+                            ImGui::GetStyleColorVec4(ImGuiCol_HeaderHovered));
+      ImGui::PushStyleColor(ImGuiCol_HeaderActive, ImGui::GetStyleColorVec4(ImGuiCol_HeaderActive));
+
+      if (ImGui::Selectable(button_text.c_str(), false, ImGuiSelectableFlags_DontClosePopups,
+                            ImVec2(button_width, button_height))) {
+        std::shared_ptr<GfxDisplay> display = Display::GetMainDisplay();
+        display->set_imgui_visible(false);
       }
-      ImGui::EndMenu();
+      ImGui::PopStyleColor(3);
     }
   }
   ImGui::EndMainMenuBar();
 
   if (m_draw_frame_time) {
     m_frame_timer.draw_window(dma_stats);
+  }
+
+  if (should_draw_overlord_debug()) {
+    draw_overlord_debug_menu();
+  }
+}
+
+void OpenGlDebugGui::draw_overlord_debug_menu() {
+  ImGui::Begin("Overlord");
+
+  for (int stream_idx = 0; stream_idx < 6; stream_idx++) {
+    auto& stream = jak3::g_overlord_stream_memory.infos[stream_idx];
+
+    ImGui::Text("%30s [%3d] | %30s [%3d]", stream[0].name.chars, stream[0].idx,
+                stream[1].name.chars, stream[1].idx);
   }
 }

@@ -5,10 +5,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Append File Docs",
+      "name": "run python script",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/scripts/docs/append-file-docs.py",
+      "program": "${workspaceFolder}/scripts/gsrc/compare-compilation-outputs.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "args": []

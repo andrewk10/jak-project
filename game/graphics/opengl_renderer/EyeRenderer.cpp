@@ -11,20 +11,36 @@
 /////////////////////////
 EyeRenderer::EyeRenderer(const std::string& name, int id) : BucketRenderer(name, id) {}
 
-void EyeRenderer::init_textures(TexturePool& texture_pool, GameVersion) {
+void EyeRenderer::init_textures(TexturePool& texture_pool, GameVersion version) {
   // set up eyes
   for (int pair_idx = 0; pair_idx < NUM_EYE_PAIRS; pair_idx++) {
     for (int lr = 0; lr < 2; lr++) {
       u32 tidx = pair_idx * 2 + lr;
 
-      u32 tbp = EYE_BASE_BLOCK + pair_idx * 2 + lr;
+      u32 tbp = pair_idx * 2 + lr;
+      switch (version) {
+        case GameVersion::Jak1:
+          tbp += EYE_BASE_BLOCK_JAK1;
+          break;
+        case GameVersion::Jak2:
+          // NOTE: using jak 1's address because jak 2's breaks some ocean stuff.
+          // this is a little suspicious, I think we're possibly just getting lucky here.
+          tbp += EYE_BASE_BLOCK_JAK1;
+          break;
+        case GameVersion::Jak3:
+          // for jak 3, go back to using the right TBP.
+          tbp += EYE_BASE_BLOCK_JAK3;
+          break;
+        default:
+          ASSERT_NOT_REACHED();
+      }
       TextureInput in;
       in.gpu_texture = m_gpu_eye_textures[tidx].fb.texture();
       in.w = 32;
       in.h = 32;
       in.debug_page_name = "PC-EYES";
       in.debug_name = fmt::format("{}-eye-gpu-{}", lr ? "left" : "right", pair_idx);
-      in.id = texture_pool.allocate_pc_port_texture();
+      in.id = texture_pool.allocate_pc_port_texture(version);
       m_gpu_eye_textures[tidx].gpu_tex = texture_pool.give_texture_and_load_to_vram(in, tbp);
       m_gpu_eye_textures[tidx].tbp = tbp;
     }
@@ -170,7 +186,7 @@ EyeRenderer::SpriteInfo decode_sprite(const DmaTransfer& dma) {
   memcpy(&result.a, dma.data + 16 + 12, 1);  // a
 
   // uv0
-  memcpy(&result.uv0[0], &dma.data[32], 8);
+  memcpy(&result.uv0, &dma.data[32], 8);
 
   // xyz0
   memcpy(&result.xyz0[0], &dma.data[48], 12);
@@ -220,8 +236,11 @@ std::vector<EyeRenderer::SingleEyeDraws> EyeRenderer::get_draws(DmaFollower& dma
     bool using_64 = false;
     {
       auto draw0 = read_eye_draw(dma);
-      ASSERT(draw0.sprite.uv0[0] == 0);
-      ASSERT(draw0.sprite.uv0[1] == 0);
+      // ASSERT(draw0.sprite.uv0[0] == 0);
+      // ASSERT(draw0.sprite.uv0[1] == 0);
+      // printf("hashed name is 0x%x 0x%x\n", draw0.sprite.uv0[0], draw0.sprite.uv0[1]);
+      l_draw.fnv_name_hash = draw0.sprite.uv0;
+      r_draw.fnv_name_hash = draw0.sprite.uv0;
       ASSERT(draw0.sprite.uv1[0] == 0);
       ASSERT(draw0.sprite.uv1[1] == 0);
       if (draw0.scissor.y1 - draw0.scissor.y0 == 63) {
@@ -493,7 +512,9 @@ void EyeRenderer::run_gpu(const std::vector<SingleEyeDraws>& draws,
   buffer_idx = 0;
   for (size_t draw_idx = 0; draw_idx < draws.size(); draw_idx++) {
     const auto& draw = draws[draw_idx];
-    const auto& out_tex = m_gpu_eye_textures[draw.tex_slot()];
+    auto& out_tex = m_gpu_eye_textures[draw.tex_slot()];
+    out_tex.fnv_name_hash = draw.fnv_name_hash;
+    out_tex.lr = draw.lr;
 
     // first, the clear
     float clear[4] = {0, 0, 0, 0};
@@ -558,15 +579,30 @@ std::optional<u64> EyeRenderer::lookup_eye_texture(u8 eye_id) {
   }
 }
 
+std::optional<u64> EyeRenderer::lookup_eye_texture_hash(u64 hash, bool lr) {
+  for (auto& slot : m_gpu_eye_textures) {
+    if (slot.fnv_name_hash == hash && slot.lr == lr) {
+      auto* gpu_tex = slot.gpu_tex;
+      if (gpu_tex) {
+        return gpu_tex->gpu_textures.at(0).gl;
+      } else {
+        fmt::print("lookup eye failed for {} (1)\n", hash);
+        return {};
+      }
+    }
+  }
+  fmt::print("lookup eye failed for {} (2)\n", hash);
+  return {};
+}
+
 //////////////////////
 // DMA Decode
 //////////////////////
 
 std::string EyeRenderer::SpriteInfo::print() const {
   std::string result;
-  result +=
-      fmt::format("a: {:x} uv: ({}, {}), ({}, {}) xyz: ({}, {}, {}), ({}, {}, {})", a, uv0[0],
-                  uv0[1], uv1[0], uv1[1], xyz0[0], xyz0[1], xyz0[2], xyz1[0], xyz1[1], xyz1[2]);
+  result += fmt::format("a: {:x} uv: ({}), ({}, {}) xyz: ({}, {}, {}), ({}, {}, {})", a, uv0,
+                        uv1[0], uv1[1], xyz0[0], xyz0[1], xyz0[2], xyz1[0], xyz1[1], xyz1[2]);
   return result;
 }
 

@@ -5,6 +5,7 @@
  * Decoding info for each opcode.
  */
 
+#include <cstdint>
 #include <string>
 
 namespace decompiler {
@@ -181,6 +182,7 @@ enum class InstructionKind {
   PNOR,
   PCPYH,
   PINTEH,
+  PEXCW,
 
   // COP1 / FPU
   ADDS,

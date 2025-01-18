@@ -50,7 +50,7 @@
     )
   )
 
-;; TODO - deps should probably just treated as a proper list to refactor duplication 
+;; TODO - deps should probably just treated as a proper list to refactor duplication
 (defmacro goal-src-sequence (prefix &key (deps '()) &rest sequence)
   "Add a sequence of GOAL files (each depending on the previous) in the given directory,
    with all depending on the given deps."
@@ -80,6 +80,17 @@
       )
 
     `(begin ,@result)
+    )
+  )
+
+(defun custom-level-cgo (output-name desc-file-name)
+  "Add a CGO with the given output name (in $OUT/iso) and input name (in custom_assets/jak2/levels/)"
+  (let ((out-name (string-append "$OUT/iso/" output-name)))
+    (defstep :in (string-append "custom_assets/jak2/levels/" desc-file-name)
+      :tool 'dgo
+      :out `(,out-name)
+      )
+    (set! *all-cgos* (cons out-name *all-cgos*))
     )
   )
 
@@ -123,6 +134,12 @@
     ,@(apply (lambda (x) `(copy-go ,x)) gos)
     )
   )
+
+(defmacro build-custom-level (name)
+  (let* ((path (string-append "custom_assets/jak2/levels/" name "/" name ".jsonc")))
+    `(defstep :in ,path
+              :tool 'build-level2
+              :out '(,(string-append "$OUT/obj/" name ".go")))))
 
 (defmacro group (name &rest stuff)
   `(defstep :in ""
@@ -224,7 +241,7 @@
       `(begin
         ;; macros can't return nothing, so these macros assume they will be given a non-empty list
         (when (not (null? '(,@gsrc-seq-args)))
-          (goal-src-sequence "" :deps ,deps ,@gsrc-seq-args))
+          (goal-src-sequence "" :deps ,(eval deps) ,@gsrc-seq-args))
         (when (not (null? '(,@textures)))
           (copy-textures ,@textures))
         (when (not (null? '(,@gos)))

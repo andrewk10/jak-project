@@ -6,7 +6,7 @@
 ;; dgos: ENGINE, GAME
 
 (declare-type talker-speech-class structure)
-(define-extern talker-spawn-func (function talker-speech-class process-tree vector region int))
+(define-extern talker-spawn-func (function talker-speech-class process-tree vector region sound-id))
 (define-extern talker-surpress! (function none))
 (declare-type talker process)
 (define-extern talker-init (function talker-speech-class vector region none :behavior talker))
@@ -21,54 +21,49 @@
 ;; DECOMP BEGINS
 
 (deftype talker-speech-class (structure)
-  ((name          string       :offset-assert   0)
-   (channel       gui-channel  :offset-assert   4)
-   (flags         uint8        :offset-assert   5)
-   (speech        uint16       :offset-assert   6)
-   (text-message  uint32       :offset-assert   8)
-   (text-duration uint16       :offset-assert  12)
-   (delay         uint16       :offset-assert  14)
-   (pos           uint16       :offset-assert  16)
-   (neg           uint16       :offset-assert  18)
-   (on-close      pair         :offset-assert  20)
+  ((name           string)
+   (channel        gui-channel)
+   (flags          uint8)
+   (speech         uint16)
+   (text-message   text-id)
+   (text-duration  uint16)
+   (delay          uint16)
+   (pos            uint16)
+   (neg            uint16)
+   (on-close       pair)
    )
   :pack-me
-  :method-count-assert 14
-  :size-assert         #x18
-  :flag-assert         #xe00000018
   (:methods
-    (talker-speech-class-method-9 (_type_) symbol 9)
-    (play-communicator-speech! (_type_) none 10)
-    (talker-speech-class-method-11 (_type_) none 11)
-    (talker-speech-class-method-12 (_type_ int) none 12)
-    (talker-speech-class-method-13 (_type_ int) none 13)
+    (talker-speech-class-method-9 (_type_) symbol)
+    (play-communicator-speech! (_type_) none)
+    (talker-speech-class-method-11 (_type_) none)
+    (talker-speech-class-method-12 (_type_ int) none)
+    (talker-speech-class-method-13 (_type_ int) none)
     )
   )
 
 
 (deftype talker (process)
-  ((trans          vector              :inline :offset-assert 128)
-   (message        talker-speech-class         :offset-assert 144)
-   (total-time     time-frame                  :offset-assert 152)
-   (total-off-time time-frame                  :offset-assert 160)
-   (start-time     time-frame                  :offset-assert 168)
-   (state-time     time-frame                  :offset-assert 176)
-   (voicebox       handle                      :offset-assert 184)
-   (voice-id       sound-id                    :offset-assert 192)
-   (message-id     sound-id                    :offset-assert 196)
-   (region         region                      :offset-assert 200)
-   (interp         float                       :offset-assert 204)
-   (save?          symbol                      :offset-assert 208)
+  ((trans           vector  :inline)
+   (message         talker-speech-class)
+   (total-time      time-frame)
+   (total-off-time  time-frame)
+   (start-time      time-frame)
+   (state-time      time-frame)
+   (voicebox        handle)
+   (voice-id        sound-id)
+   (message-id      sound-id)
+   (region          region)
+   (interp          float)
+   (save?           symbol)
    )
-  :heap-base #x60
-  :method-count-assert 18
-  :size-assert         #xd4
-  :flag-assert         #x12006000d4
+  (:state-methods
+    idle
+    active
+    exit
+    )
   (:methods
-    (idle () _type_ :state 14)
-    (active () _type_ :state 15)
-    (exit () _type_ :state 16)
-    (talker-method-17 (_type_) none 17)
+    (talker-method-17 (_type_) none)
     )
   )
 
@@ -97,7 +92,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x3
-      :text-message #x224
+      :text-message (text-id tutorial-jump)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -107,7 +102,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x4
-      :text-message #x226
+      :text-message (text-id tutorial-double-jump)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -117,7 +112,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x5
-      :text-message #x227
+      :text-message (text-id tutorial-basic-attack)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -135,7 +130,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x7
-      :text-message #x227
+      :text-message (text-id tutorial-basic-attack)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -153,7 +148,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x9
-      :text-message #x229
+      :text-message (text-id tutorial-ground-pound)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -171,7 +166,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #xb
-      :text-message #x225
+      :text-message (text-id tutorial-roll)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -181,7 +176,7 @@
       :channel (gui-channel daxter)
       :flags #x11
       :speech #xc
-      :text-message #x228
+      :text-message (text-id tutorial-rolljump)
       :text-duration #x12c
       :neg #x1
       :on-close #f
@@ -191,7 +186,7 @@
       :channel (gui-channel message)
       :flags #x10
       :speech #xd
-      :text-message #x228
+      :text-message (text-id tutorial-rolljump)
       :text-duration #x12c
       :neg #x1
       :on-close #f
@@ -201,7 +196,7 @@
       :channel (gui-channel daxter)
       :flags #x11
       :speech #xe
-      :text-message #x22a
+      :text-message (text-id tutorial-high-jump)
       :text-duration #x12c
       :neg #x1
       :on-close #f
@@ -211,7 +206,7 @@
       :channel (gui-channel message)
       :flags #x10
       :speech #xf
-      :text-message #x22a
+      :text-message (text-id tutorial-high-jump)
       :text-duration #x12c
       :neg #x1
       :on-close #f
@@ -375,7 +370,7 @@
       :name "cityv069"
       :channel (gui-channel alert)
       :speech #x24
-      :text-message #x246
+      :text-message (text-id tutorial-hover-zones)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -487,7 +482,7 @@
       :channel (gui-channel message)
       :flags #x7
       :speech #x33
-      :text-message #x245
+      :text-message (text-id mission-complete-return-to-krew)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -497,7 +492,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x34
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -514,7 +509,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x36
-      :text-message #x247
+      :text-message (text-id tutorial-dive)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -523,7 +518,7 @@
       :name "mess006"
       :channel (gui-channel message)
       :speech #x37
-      :text-message #x226
+      :text-message (text-id tutorial-double-jump)
       :text-duration #x5dc
       :pos #x8
       :neg #x1
@@ -614,7 +609,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x42
-      :delay #x4b0
+      :delay (seconds 4)
       :neg #x1
       :on-close #f
       )
@@ -623,7 +618,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x43
-      :delay #xbb8
+      :delay (seconds 10)
       :neg #x1
       :on-close #f
       )
@@ -664,7 +659,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #x48
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -681,7 +676,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x4a
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -698,7 +693,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x4c
-      :text-message #x23d
+      :text-message (text-id board-tutorial-grind)
       :text-duration #xbb8
       :neg #x1
       :on-close #f
@@ -708,7 +703,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x4d
-      :text-message #x22b
+      :text-message (text-id gungame-tutorial-fire-button)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -718,7 +713,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x4e
-      :text-message #x252
+      :text-message (text-id tutorial-board-get-on)
       :text-duration #x960
       :neg #x1
       :on-close #f
@@ -728,7 +723,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x4f
-      :text-message #x253
+      :text-message (text-id tutorial-dark)
       :text-duration #x960
       :neg #x1
       :on-close #f
@@ -738,7 +733,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x50
-      :text-message #x226
+      :text-message (text-id tutorial-double-jump)
       :text-duration #x960
       :neg #x1
       :on-close #f
@@ -748,7 +743,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x51
-      :delay #x1770
+      :delay (seconds 20)
       :neg #x1
       :on-close #f
       )
@@ -757,7 +752,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x52
-      :text-message #x241
+      :text-message (text-id board-score-grind-and-trick)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -823,7 +818,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x5a
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -832,7 +827,7 @@
       :channel (gui-channel daxter)
       :flags #x7
       :speech #x5b
-      :text-message #x239
+      :text-message (text-id board-tutorial-get-on-board)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -858,7 +853,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x5e
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -883,7 +878,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x61
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -892,7 +887,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x62
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -901,7 +896,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x63
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -910,7 +905,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x64
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -919,7 +914,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x65
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -928,7 +923,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x66
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -944,7 +939,7 @@
       :name "whack01"
       :channel (gui-channel message)
       :speech #x68
-      :text-message #x24e
+      :text-message (text-id tutorial-unknown)
       :text-duration #xbb8
       :neg #x1
       :on-close #f
@@ -954,7 +949,7 @@
       :channel (gui-channel voicebox)
       :flags #x7
       :speech #x69
-      :delay #x5dc
+      :delay (seconds 5)
       :neg #x1
       :on-close #f
       )
@@ -995,7 +990,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x6e
-      :delay #x5dc
+      :delay (seconds 5)
       :neg #x1
       :on-close #f
       )
@@ -1003,7 +998,7 @@
       :name "test001"
       :channel (gui-channel message)
       :speech #x6f
-      :text-message #x23d
+      :text-message (text-id board-tutorial-grind)
       :text-duration #x2328
       :neg #x1
       :on-close #f
@@ -1021,7 +1016,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x71
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -1030,7 +1025,7 @@
       :channel (gui-channel message)
       :flags #x3
       :speech #x72
-      :text-message #x239
+      :text-message (text-id board-tutorial-get-on-board)
       :text-duration #x960
       :neg #x1
       :on-close #f
@@ -1039,7 +1034,7 @@
       :name "str002"
       :channel (gui-channel message)
       :speech #x73
-      :text-message #x239
+      :text-message (text-id board-tutorial-get-on-board)
       :text-duration #x960
       :neg #x1
       :on-close #f
@@ -1048,7 +1043,7 @@
       :name "note001"
       :channel (gui-channel notice)
       :speech #x74
-      :text-message #x239
+      :text-message (text-id board-tutorial-get-on-board)
       :text-duration #x960
       :neg #x1
       :on-close #f
@@ -1066,7 +1061,7 @@
       :channel (gui-channel notice)
       :flags #x20
       :speech #x76
-      :text-message #x254
+      :text-message (text-id scea-splash)
       :text-duration #x384
       :neg #x1
       :on-close #f
@@ -1076,7 +1071,7 @@
       :channel (gui-channel notice)
       :flags #x20
       :speech #x77
-      :text-message #x255
+      :text-message (text-id scee-splash)
       :text-duration #x384
       :neg #x1
       :on-close #f
@@ -1086,7 +1081,7 @@
       :channel (gui-channel notice)
       :flags #x20
       :speech #x78
-      :text-message #x257
+      :text-message (text-id scei-splash)
       :text-duration #x384
       :neg #x1
       :on-close #f
@@ -1096,7 +1091,7 @@
       :channel (gui-channel notice)
       :flags #x20
       :speech #x79
-      :text-message #x256
+      :text-message (text-id scek-splash)
       :text-duration #x384
       :neg #x1
       :on-close #f
@@ -1106,7 +1101,7 @@
       :channel (gui-channel notice)
       :flags #xa0
       :speech #x7a
-      :text-message #x258
+      :text-message (text-id a-game-by)
       :text-duration #x384
       :neg #x1
       :on-close #f
@@ -1115,7 +1110,7 @@
       :name "intro03"
       :channel (gui-channel notice-low)
       :speech #x7b
-      :text-message #x30c
+      :text-message (text-id scene-subtitles-hint)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1125,7 +1120,7 @@
       :channel (gui-channel notice)
       :flags #x20
       :speech #x7c
-      :text-message #x25a
+      :text-message (text-id two-years-later)
       :text-duration #x384
       :neg #x1
       :on-close #f
@@ -1135,9 +1130,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x7d
-      :text-message #x25c
+      :text-message (text-id gun-upgrade-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1146,8 +1141,8 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x7e
-      :text-message #x261
-      :delay #x384
+      :text-message (text-id gun-upgrade-speed)
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1156,9 +1151,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x7f
-      :text-message #x262
+      :text-message (text-id gun-upgrade-ammo)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1167,9 +1162,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x80
-      :text-message #x263
+      :text-message (text-id gun-upgrade-damage)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1178,9 +1173,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x81
-      :text-message #x264
+      :text-message (text-id mission-complete)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1189,8 +1184,8 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x82
-      :text-message #x265
-      :delay #x384
+      :text-message (text-id pass-red-acquired)
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1199,9 +1194,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x83
-      :text-message #x266
+      :text-message (text-id pass-green-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1210,9 +1205,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x84
-      :text-message #x267
+      :text-message (text-id pass-yellow-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1221,9 +1216,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x85
-      :text-message #x268
+      :text-message (text-id pass-palace-acquired)
       :text-duration #x5dc
-      :delay #xbb8
+      :delay (seconds 10)
       :neg #x1
       :on-close #f
       )
@@ -1232,9 +1227,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x86
-      :text-message #x269
+      :text-message (text-id pass-black-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1243,9 +1238,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x87
-      :text-message #x25d
+      :text-message (text-id red-gun-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1254,9 +1249,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x88
-      :text-message #x25e
+      :text-message (text-id yellow-gun-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1265,9 +1260,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x89
-      :text-message #x25f
+      :text-message (text-id blue-gun-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1276,9 +1271,9 @@
       :channel (gui-channel alert)
       :flags #x40
       :speech #x8a
-      :text-message #x260
+      :text-message (text-id dark-gun-acquired)
       :text-duration #x5dc
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -1287,7 +1282,7 @@
       :channel (gui-channel voicebox)
       :flags #x3
       :speech #x8b
-      :delay #x708
+      :delay (seconds 6)
       :neg #x1
       :on-close #f
       )
@@ -1525,9 +1520,9 @@
       :name "ora006"
       :channel (gui-channel alert)
       :speech #xaa
-      :text-message #x26e
+      :text-message (text-id oracle-gem-grind-200)
       :text-duration #x5dc
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -1535,9 +1530,9 @@
       :name "ora007"
       :channel (gui-channel alert)
       :speech #xab
-      :text-message #x26e
+      :text-message (text-id oracle-gem-grind-200)
       :text-duration #x5dc
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -1545,9 +1540,9 @@
       :name "ora008"
       :channel (gui-channel alert)
       :speech #xac
-      :text-message #x26e
+      :text-message (text-id oracle-gem-grind-200)
       :text-duration #x5dc
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -1555,7 +1550,7 @@
       :name "ora009"
       :channel (gui-channel alert)
       :speech #xad
-      :text-message #x26f
+      :text-message (text-id oracle-gem-grind1-25)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1564,7 +1559,7 @@
       :name "ora010"
       :channel (gui-channel alert)
       :speech #xae
-      :text-message #x270
+      :text-message (text-id oracle-gem-grind1-200)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1573,7 +1568,7 @@
       :name "ora015"
       :channel (gui-channel alert)
       :speech #xaf
-      :text-message #x271
+      :text-message (text-id oracle-gem-grind2-200)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1582,7 +1577,7 @@
       :name "ora016"
       :channel (gui-channel alert)
       :speech #xb0
-      :text-message #x272
+      :text-message (text-id oracle-gem-grind-100)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1681,7 +1676,7 @@
       :flags #xa
       :speech #xbc
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "ds163"
@@ -1695,7 +1690,7 @@
       :name "palmes01"
       :channel (gui-channel message)
       :speech #xbe
-      :text-message #x24d
+      :text-message (text-id tutorial-grind)
       :text-duration #x5dc
       :pos #x3
       :neg #x1
@@ -1714,7 +1709,7 @@
       :channel (gui-channel daxter)
       :flags #x2
       :speech #xc0
-      :text-message #x24d
+      :text-message (text-id tutorial-grind)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1723,7 +1718,7 @@
       :name "digmes01"
       :channel (gui-channel message)
       :speech #xc1
-      :text-message #x24d
+      :text-message (text-id tutorial-grind)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -1733,7 +1728,7 @@
       :channel (gui-channel daxter)
       :flags #x3
       :speech #xc2
-      :text-message #x24c
+      :text-message (text-id tutorial-ramp)
       :text-duration #x5dc
       :pos #x3
       :neg #x1
@@ -2513,7 +2508,7 @@
       :flags #xa
       :speech #x14c
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb03int"
@@ -2537,7 +2532,7 @@
       :flags #xa
       :speech #x14f
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb05int"
@@ -2561,7 +2556,7 @@
       :flags #xa
       :speech #x152
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb07int"
@@ -2585,7 +2580,7 @@
       :flags #xa
       :speech #x155
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb08int"
@@ -2609,7 +2604,7 @@
       :flags #xa
       :speech #x158
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb10int"
@@ -2657,7 +2652,7 @@
       :flags #xa
       :speech #x15e
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb20int"
@@ -2681,7 +2676,7 @@
       :flags #xa
       :speech #x161
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "bb21fail"
@@ -2801,7 +2796,7 @@
       :flags #xa
       :speech #x170
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "cityv153"
@@ -2823,7 +2818,7 @@
       :name "cityv175"
       :channel (gui-channel alert)
       :speech #x173
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -2831,7 +2826,7 @@
       :name "cityv176"
       :channel (gui-channel alert)
       :speech #x174
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -2839,7 +2834,7 @@
       :name "cityv177"
       :channel (gui-channel alert)
       :speech #x175
-      :delay #x384
+      :delay (seconds 3)
       :neg #x1
       :on-close #f
       )
@@ -2871,7 +2866,7 @@
       :name "racehint"
       :channel (gui-channel message)
       :speech #x179
-      :text-message #x248
+      :text-message (text-id tutorial-turbo-or-jump)
       :text-duration #x4b0
       :neg #x1
       :on-close #f
@@ -3444,7 +3439,7 @@
       :name "ds112"
       :channel (gui-channel daxter)
       :speech #x1c5
-      :text-message #x249
+      :text-message (text-id tutorial-mech-punch)
       :neg #x1
       :on-close #f
       )
@@ -3475,7 +3470,7 @@
       :name "ruimech1"
       :channel (gui-channel message)
       :speech #x1c9
-      :text-message #x249
+      :text-message (text-id tutorial-mech-punch)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -3484,7 +3479,7 @@
       :name "ruimech2"
       :channel (gui-channel message)
       :speech #x1ca
-      :text-message #x24a
+      :text-message (text-id tutorial-mech-carry)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -3493,7 +3488,7 @@
       :name "ruimech3"
       :channel (gui-channel message)
       :speech #x1cb
-      :text-message #x24b
+      :text-message (text-id tutorial-mech-throw)
       :text-duration #x5dc
       :neg #x1
       :on-close #f
@@ -3512,14 +3507,14 @@
       :flags #xa
       :speech #x1cd
       :neg #x1
-      :on-close '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in))
+      :on-close #f ;; og:preserve-this '(birth-pickup #f skill FACT_SUPER_SKILL_INC flags (suck-in)) ;; patched elsewhere
       )
     (new 'static 'talker-speech-class
       :name "krew004"
       :channel (gui-channel voicebox)
       :flags #x2
       :speech #x1ce
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -3528,7 +3523,7 @@
       :channel (gui-channel voicebox)
       :flags #x2
       :speech #x1cf
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )
@@ -3537,7 +3532,7 @@
       :channel (gui-channel voicebox)
       :flags #x2
       :speech #x1d0
-      :delay #x258
+      :delay (seconds 2)
       :neg #x1
       :on-close #f
       )

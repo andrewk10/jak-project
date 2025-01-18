@@ -233,7 +233,7 @@
     [0, "(function none)"],
     [3, "(function int float float float)"],
     [4, "(function int float float symbol)"],
-    [24, "(function editable symbol symbol)"],
+    [24, "(function editable editable-region symbol)"],
     [25, "(function editable symbol symbol)"],
     [28, "(function editable symbol)"]
   ],
@@ -278,7 +278,7 @@
     [55, "(function pair symbol)"]
   ],
   "script": [
-    [0, "(function script-context none)"],
+    [0, "(function script-context object)"],
     [1, "(function script-context int)"],
     [2, "(function script-context int)"],
     [3, "(function script-context int)"],
@@ -286,10 +286,10 @@
     [5, "(function script-context int)"],
     [6, "(function script-context object)"],
     [7, "(function script-context object :behavior process)"],
-    [8, "(function script-context none :behavior process)"],
-    [9, "(function script-context none :behavior process)"],
-    [10, "(function script-context none :behavior process)"],
-    [11, "(function script-context none :behavior process)"],
+    [8, "(function script-context object :behavior process)"],
+    [9, "(function script-context object :behavior process)"],
+    [10, "(function script-context object :behavior process)"],
+    [11, "(function script-context object :behavior process)"],
     [12, "(function script-context symbol)"],
     [13, "(function script-context symbol)"],
     [14, "(function script-context symbol)"],
@@ -298,50 +298,50 @@
     [18, "(function script-context symbol)"],
     [19, "(function script-context symbol)"],
     [20, "(function script-context symbol)"],
-    [21, "(function script-context none)"],
-    [22, "(function script-context none)"],
+    [21, "(function script-context object)"],
+    [22, "(function script-context object)"],
     [23, "(function script-context symbol)"],
-    [24, "(function script-context none)"],
+    [24, "(function script-context object)"],
     [25, "(function script-context symbol)"],
-    [26, "(function script-context none)"],
+    [26, "(function script-context object)"],
     [27, "(function script-context entity-perm-status)"],
     [28, "(function script-context (pointer process))"],
     [29, "(function script-context symbol)"],
-    [30, "(function script-context none)"],
-    [31, "(function script-context none)"],
-    [32, "(function script-context none)"],
+    [30, "(function script-context object)"],
+    [31, "(function script-context object)"],
+    [32, "(function script-context object)"],
     [33, "(function script-context object)"],
     [34, "(function script-context region)"],
     [35, "(function script-context drawable-region-prim)"],
     [36, "(function script-context symbol :behavior time-of-day-proc)"],
     [37, "(function script-context object :behavior time-of-day-proc)"],
-    [38, "(function script-context none)"],
+    [38, "(function script-context object)"],
     // TODO - ugly time-frame casts
-    [39, "(function script-context none)"],
+    [39, "(function script-context object)"],
     // TODO - ugly time-frame casts
-    [40, "(function script-context none)"],
+    [40, "(function script-context object)"],
     [41, "(function script-context sound-id)"],
     [42, "(function script-context sound-id)"],
-    [43, "(function script-context none)"],
+    [43, "(function script-context object)"],
     [44, "(function script-context object)"],
-    [45, "(function script-context none)"],
-    [46, "(function script-context none)"],
-    [47, "(function script-context none)"],
-    [48, "(function script-context none)"],
+    [45, "(function script-context object)"],
+    [46, "(function script-context object)"],
+    [47, "(function script-context object)"],
+    [48, "(function script-context object)"],
     [49, "(function script-context symbol)"],
     [50, "(function script-context symbol)"],
-    [51, "(function script-context none)"],
+    [51, "(function script-context object)"],
     [52, "(function script-context symbol)"],
     [53, "(function script-context symbol)"],
     [54, "(function script-context symbol)"],
-    [55, "(function script-context none)"],
-    [56, "(function script-context none)"],
-    [57, "(function script-context none)"],
-    [58, "(function script-context none)"],
-    [59, "(function script-context none)"],
-    [60, "(function script-context none)"],
-    [61, "(function script-context none)"],
-    [62, "(function script-context none)"],
+    [55, "(function script-context object)"],
+    [56, "(function script-context object)"],
+    [57, "(function script-context object)"],
+    [58, "(function script-context object)"],
+    [59, "(function script-context object)"],
+    [60, "(function script-context object)"],
+    [61, "(function script-context object)"],
+    [62, "(function script-context object)"],
     [64, "(function script-context object)"],
     [65, "(function script-context symbol)"],
     [66, "(function script-context symbol)"],
@@ -367,10 +367,10 @@
     [15, "(function script-context pair :behavior process)"] // NOTE - an interesting one
   ],
   "entity": [
-    [16, "(function process none)"],
-    [11, "(function process none)"],
-    [59, "(function process none)"],
-    [56, "(function process-drawable none)"]
+    [16, "(function process object)"],
+    [11, "(function process object)"],
+    [59, "(function process object)"],
+    [56, "(function process-drawable object)"]
   ],
   "memory-usage": [
     [2, "(function process-drawable symbol)"],
@@ -448,6 +448,7 @@
     [26, "(function continue-point target)"]
   ],
   "warp-gate": [
+    [0, "(function none :behavior scene-player)"],
     [8, "(function string none)"],
     [12, "(function none :behavior target)"]
   ],
@@ -577,7 +578,7 @@
     [25, "(function none :behavior scene-player)"],
     [26, "(function (pointer process) :behavior scene-player)"],
     [27, "(function symbol :behavior scene-player)"],
-    [28, "(function int)"],
+    [28, "(function sound-id)"],
     [29, "(function (pointer process) :behavior scene-player)"],
     [30, "(function symbol :behavior scene-player)"],
     [31, "(function process-drawable vector)"]
@@ -653,9 +654,9 @@
   "collectables": [[69, "(function part-tracker vector)"]],
   "mech-states": [[50, "(function none :behavior target)"]],
   "target-mech": [
-    [7, "(function none :behavior target)"],
+    [7, "(function none :behavior manipy)"],
     [8, "(function none :behavior mech)"],
-    [9, "(function none :behavior target)"],
+    [9, "(function none :behavior manipy)"],
     [18, "(function surface object surface int none :behavior target)"],
     [19, "(function surface object surface int none :behavior target)"]
   ],
@@ -1146,7 +1147,8 @@
     [62, "(function object nav-control none)"],
     [63, "(function object nav-control none)"],
     [64, "(function object nav-control none)"],
-    [65, "(function object nav-control none)"]
+    [65, "(function object nav-control none)"],
+    [93, "(function rift-rider vector vector vector float)"]
   ],
   "forrescb-obs": [
     [0, "(function none :behavior task-manager)"],
@@ -1225,8 +1227,8 @@
   "castle-baron": [[7, "(function collectable none)"]],
   "metalkor-extras": [[65, "(function vector :behavior metalkor-shot)"]],
   "metalkor-setup": [
-    [1, "(function gem-tracker none)"],
-    [2, "(function gem-tracker none)"]
+    [1, "(function gem-tracker symbol)"],
+    [2, "(function gem-tracker symbol)"]
   ],
   "meet-brutter": [
     [0, "(function none :behavior task-manager)"],
@@ -1789,5 +1791,25 @@
     [97, "(function grim-sewer none)"],
     [98, "(function grim-sewer none)"],
     [99, "(function object grim-sewer symbol)"]
+  ],
+  "shuttle": [
+    [0, "(function none :behavior task-manager)"],
+    [1, "(function none :behavior task-manager)"],
+    [2, "(function none :behavior task-manager)"],
+    [3, "(function symbol :behavior task-manager)"],
+    [4, "(function none :behavior task-manager)"],
+    [5, "(function none :behavior task-manager)"],
+    [6, "(function citizen-rebel object symbol none :behavior task-manager)"],
+    [7, "(function none :behavior task-manager)"],
+    [8, "(function none :behavior task-manager)"],
+    [9, "(function none :behavior task-manager)"],
+    [10, "(function none :behavior task-manager)"],
+    [11, "(function none :behavior task-manager)"],
+    [12, "(function none :behavior task-manager)"],
+    [13, "(function citizen-rebel object symbol none :behavior task-manager)"]
+  ],
+  "prison-obs": [
+    [0, "(function none)"],
+    [1, "(function none)"]
   ]
 }

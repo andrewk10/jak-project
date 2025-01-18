@@ -41,14 +41,13 @@ renderers that want a single matrix.
 ;; Without this corrector, the fogginess of the world would change as the fov changes
 ;; (for example, when jak gets on the zoomer, the fov changes slightly)
 (deftype fog-corrector (structure)
-  ((fog-end   float  :offset-assert   0)
-   (fog-start float  :offset-assert   4)
+  ((fog-end    float)
+   (fog-start  float)
    )
-  :method-count-assert 9
-  :size-assert         #x8
-  :flag-assert         #x900000008
   )
 
+
+;; WARN: Return type mismatch float vs none.
 (defun fog-corrector-setup ((arg0 fog-corrector) (arg1 math-camera))
   "Set the fog corrector based on the supplied math-camera"
   (set! (-> arg0 fog-end) (* (-> arg1 fog-end) (-> arg1 fov-correction-factor)))
@@ -76,7 +75,7 @@ renderers that want a single matrix.
        ;; crops excess aspect ratio at the top and bottom
        ;(set! (-> arg0 y-ratio) (* (1/ (-> *pc-settings* aspect-ratio)) (-> arg0 x-ratio)))
        )
-      ((-> *pc-settings* movie?)
+      ((real-movie?)
        ;; this mess is just so that we can force the original 16x9 cropping during cutscenes.
        (if (<= (-> *pc-settings* aspect-ratio) ASPECT_16X9)
            (set! (-> arg0 y-ratio) (* (1/ (-> *pc-settings* aspect-ratio)) (-> arg0 x-ratio)))
@@ -167,10 +166,10 @@ renderers that want a single matrix.
       (let ((f4-34 (/ f1-21 (* (-> arg0 d) (- (-> arg0 f) (-> arg0 d)))))
             (f3-30 (-> arg0 fov-correction-factor))
             )
-        (set! (-> arg0 perspective data 0) (* f3-30 (- (/ (-> arg0 x-pix) (* (-> arg0 x-ratio) (-> arg0 d))))))
-        (set! (-> arg0 perspective data 5) (* f3-30 (- (/ (-> arg0 y-pix) (* (-> arg0 y-ratio) (-> arg0 d))))))
-        (set! (-> arg0 perspective data 10) (* f3-30 (+ (-> arg0 f) (-> arg0 d)) f4-34))
-        (set! (-> arg0 perspective data 11) (* (/ f3-30 (-> arg0 d)) f30-0))
+        (set! (-> arg0 perspective vector 0 x) (* f3-30 (- (/ (-> arg0 x-pix) (* (-> arg0 x-ratio) (-> arg0 d))))))
+        (set! (-> arg0 perspective vector 1 y) (* f3-30 (- (/ (-> arg0 y-pix) (* (-> arg0 y-ratio) (-> arg0 d))))))
+        (set! (-> arg0 perspective vector 2 z) (* f3-30 (+ (-> arg0 f) (-> arg0 d)) f4-34))
+        (set! (-> arg0 perspective vector 2 w) (* (/ f3-30 (-> arg0 d)) f30-0))
         (set! (-> arg0 perspective trans z) (* -2.0 f4-34 (-> arg0 f) (-> arg0 d) f3-30))
         )
       (let ((f24-0 2048.0)
@@ -216,38 +215,30 @@ renderers that want a single matrix.
           (set! (-> arg0 guard z) 1.0)
           (set! (-> arg0 guard w) 1.0)
           (set! (-> arg0 isometric trans z) (- 16777215.0 f22-0))
-          ;; PC HACK!
+          ;; og:preserve-this PC HACK!
           ;; for whatever reason, the font render ends up computing a depth #x1000000 instead of
           ;; #xffffffff, which overflows the 24-bit z buffer.
           ;; cheating this by 1 bit seems to fix it.
           (#when PC_PORT
-                 ;; #x4b002032 -> #x4b002031
-                 (set! (-> arg0 isometric vector 3 z) (the-as float (- (the-as int (-> arg0 isometric vector 3 z)) 1)))
-                 )
+            ;; #x4b002032 -> #x4b002031
+            (set! (-> arg0 isometric vector 3 z) (the-as float (- (the-as int (-> arg0 isometric vector 3 z)) 1)))
+            ;; also do mirror game check here.
+            (when *PC-MIRROR-MODE-SET*
+              (*! (-> arg0 perspective vector 0 x) -1.)))
           )
         (set! (-> arg0 isometric trans w) f30-0)
-        (let ((f1-28 (-> arg0 perspective data 0))
-              (f2-19 (-> arg0 perspective data 5))
-              (f0-48 (* -1.9996 (-> arg0 perspective data 0)))
+        (let ((f1-28 (-> arg0 perspective vector 0 x))
+              (f2-19 (-> arg0 perspective vector 1 y))
+              (f0-48 (* -1.9996 (-> arg0 perspective vector 0 x)))
               )
           (let ((v1-39 (-> arg0 sprite-2d)))
-            (set! (-> v1-39 data 0) f0-48)
-            (set! (-> v1-39 data 1) 0.0)
-            (set! (-> v1-39 data 2) 0.0)
-            (set! (-> v1-39 data 3) 0.0)
+            (set! (-> v1-39 vector 0 x) f0-48)
+            (set! (-> v1-39 vector 0 y) 0.0)
+            (set! (-> v1-39 vector 0 z) 0.0)
+            (set! (-> v1-39 vector 0 w) 0.0)
             )
-          (let ((v1-40 (&-> arg0 sprite-2d data 4)))
-            (set! (-> v1-40 0) 0.0)
-            (set! (-> v1-40 1) (- (* (/ f2-19 f1-28) f0-48)))
-            (set! (-> v1-40 2) 0.0)
-            (set! (-> v1-40 3) 0.0)
-            )
-          (let ((v1-41 (&-> arg0 sprite-2d data 8)))
-            (set! (-> v1-41 0) 0.0)
-            (set! (-> v1-41 1) 0.0)
-            (set! (-> v1-41 2) (- f0-48))
-            (set! (-> v1-41 3) 0.0)
-            )
+          (set-vector! (-> arg0 sprite-2d vector 1) 0.0 (- (* (/ f2-19 f1-28) f0-48)) 0.0 0.0)
+          (set-vector! (-> arg0 sprite-2d vector 2) 0.0 0.0 (- f0-48) 0.0)
           (set-vector! (-> arg0 sprite-2d trans) 0.0 0.0 (* 500000000.0 f0-48) (* 60.0 f0-48 (-> arg0 pfog0)))
           )
         (set! (-> arg0 sprite-2d-hvdf quad) (-> arg0 hvdf-off quad))
@@ -327,9 +318,9 @@ renderers that want a single matrix.
     (matrix-identity! (-> gp-0 inv-camera-rot-other))
     (matrix-identity! (-> gp-0 camera-rot-other))
     (matrix-identity! (-> gp-0 camera-temp-other))
-    (set! (-> gp-0 isometric data 0) 1.0)
-    (set! (-> gp-0 isometric data 5) 0.5)
-    (set! (-> gp-0 isometric data 10) -1.0)
+    (set! (-> gp-0 isometric vector 0 x) 1.0)
+    (set! (-> gp-0 isometric vector 1 y) 0.5)
+    (set! (-> gp-0 isometric vector 2 z) -1.0)
     (set! (-> gp-0 reset) 1)
     (set! (-> gp-0 smooth-step) 0.0)
     (set! (-> gp-0 smooth-t) 0.0)
@@ -388,22 +379,22 @@ renderers that want a single matrix.
     )
   (set! (-> arg0 trans w) 1.0)
   (if (cpad-hold? arg1 r1)
-      (set! (-> arg0 trans y) (+ 80.0 (-> arg0 trans y)))
+      (+! (-> arg0 trans y) 80.0)
       )
   (if (cpad-hold? arg1 r2)
-      (set! (-> arg0 trans y) (+ -80.0 (-> arg0 trans y)))
+      (+! (-> arg0 trans y) -80.0)
       )
   (if (cpad-hold? arg1 x)
-      (set! (-> arg0 rot x) (+ 546.13336 (-> arg0 rot x)))
+      (+! (-> arg0 rot x) 546.13336)
       )
   (if (cpad-hold? arg1 triangle)
-      (set! (-> arg0 rot x) (+ -546.13336 (-> arg0 rot x)))
+      (+! (-> arg0 rot x) -546.13336)
       )
   (if (cpad-hold? arg1 left)
-      (set! (-> arg0 rot y) (+ 546.13336 (-> arg0 rot y)))
+      (+! (-> arg0 rot y) 546.13336)
       )
   (if (cpad-hold? arg1 right)
-      (set! (-> arg0 rot y) (+ -546.13336 (-> arg0 rot y)))
+      (+! (-> arg0 rot y) -546.13336)
       )
   arg0
   )
@@ -446,12 +437,12 @@ renderers that want a single matrix.
       (.div.vf Q vf0 vf31 :fsf #b11 :ftf #b11)
       (.wait.vf)
       ;;(.cfc2.i v1-7 Clipping)
-      (.mul.vf vf28 vf28 Q :mask #b111)
+      (.mul.vf.xyz vf28 vf28 Q)
       (.mul.vf vf23 vf23 Q)
       (.add.vf vf28 vf28 vf30)
-      (.max.x.vf vf28 vf28 vf0 :mask #b1000)
+      (.max.x.vf.w vf28 vf28 vf0)
       (.svf (&-> arg0 quad) vf28)
-      (zero? (logand clip 63))
+      (not (logtest? clip 63))
       )
     )
   )
@@ -513,19 +504,19 @@ renderers that want a single matrix.
      (.wait.vf)
      ;;(.cfc2.i v1-7 Clipping)
      ;; perspective
-     (.mul.vf vf28 vf28 Q :mask #b111)
+     (.mul.vf.xyz vf28 vf28 Q)
      ;; compute scale factor (w was 1.0)
      (.mul.vf vf23 vf23 Q)
      ;; apply hvdf offsets
      (.add.vf vf28 vf28 vf30)
      ;; saturate fog
-     (.max.x.vf vf28 vf28 vf0 :mask #b1000)
+     (.max.x.vf.w vf28 vf28 vf0)
      ;; convert to GS fixed point
      (vftoi4.xyzw vf28 vf28)
      ;; store result!
      (.svf (&-> arg0 quad) vf28)
      ;; return result of clipping.
-     (zero? (logand clip 63))
+     (not (logtest? clip 63))
      )
    )
   )
@@ -567,10 +558,10 @@ renderers that want a single matrix.
    (.div.vf Q vf0 vf31 :fsf #b11 :ftf #b11)
    (.wait.vf)
    ;;(.cfc2.i v1-7 Clipping)
-   (.mul.vf vf28 vf28 Q :mask #b111)
+   (.mul.vf.xyz vf28 vf28 Q)
    (.mul.vf vf23 vf23 Q)
    (.add.vf vf28 vf28 vf30)
-   (.max.x.vf vf28 vf28 vf0 :mask #b1000)
+   (.max.x.vf.w vf28 vf28 vf0)
    (.svf (&-> arg0 quad) vf28)
    ;;(let ((a0-2 (zero? (logand v1-7 63))))
    ;; )
@@ -579,12 +570,13 @@ renderers that want a single matrix.
    )
   )
 
+;; WARN: Return type mismatch vector vs none.
 (defun reverse-transform-point! ((arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector))
   "Likely transform arg3 from screen space to world coords, using arg1/arg2 for... something."
   (let* ((v1-1 (-> *math-camera* perspective))
          (s2-0 (-> *math-camera* camera-rot))
-         (f30-0 (* (/ (-> v1-1 data 11) (-> v1-1 data 0)) (-> *math-camera* hmge-scale w)))
-         (f28-0 (* (/ (-> v1-1 data 11) (-> v1-1 data 5)) (-> *math-camera* hmge-scale w)))
+         (f30-0 (* (/ (-> v1-1 vector 2 w) (-> v1-1 vector 0 x)) (-> *math-camera* hmge-scale w)))
+         (f28-0 (* (/ (-> v1-1 vector 2 w) (-> v1-1 vector 1 y)) (-> *math-camera* hmge-scale w)))
          (s4-0 (vector-rotate*! (new 'stack-no-clear 'vector) arg2 s2-0))
          (v1-3 (vector-matrix*! (new 'stack-no-clear 'vector) arg1 s2-0))
          (f0-8 (/ (+ (* (-> s4-0 x) (-> v1-3 x)) (* (-> s4-0 y) (-> v1-3 y)) (* (-> s4-0 z) (-> v1-3 z)))
@@ -606,7 +598,7 @@ renderers that want a single matrix.
   (none)
   )
 
-
+;; WARN: Return type mismatch symbol vs none.
 (defun init-for-transform ((arg0 matrix))
   "Sets up VU0 registers with camera info.
    This is probably a very old function and it's only used by camera debug.
@@ -712,7 +704,3 @@ renderers that want a single matrix.
     (none)
     )
   )
-
-
-
-

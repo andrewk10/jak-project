@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/goos/Interpreter.h"
+#include "common/util/FileUtil.h"
 
 #include "goalc/make/Tool.h"
 
@@ -15,7 +16,7 @@ struct MakeStep {
 
 class MakeSystem {
  public:
-  MakeSystem(const std::string& username = "#f");
+  MakeSystem(const std::optional<REPL::Config> repl_config, const std::string& username = "#f");
   void load_project_file(const std::string& file_path);
 
   goos::Object handle_defstep(const goos::Object& obj,
@@ -50,14 +51,19 @@ class MakeSystem {
                                       goos::Arguments& args,
                                       const std::shared_ptr<goos::EnvironmentObject>& env);
 
+  goos::Object handle_get_game_version_folder(const goos::Object& obj,
+                                              goos::Arguments&,
+                                              const std::shared_ptr<goos::EnvironmentObject>& env);
+
   std::vector<std::string> get_dependencies(const std::string& target) const;
   std::vector<std::string> filter_dependencies(const std::vector<std::string>& all_deps);
 
-  bool make(const std::string& target, bool force, bool verbose);
+  bool make(const std::string& target, bool force, bool verbose, bool gen_report);
 
   void add_tool(std::shared_ptr<Tool> tool);
   void set_constant(const std::string& name, const std::string& value);
   void set_constant(const std::string& name, bool value);
+  void set_constant(const std::string& name, int value);
 
   template <typename T>
   void add_tool() {
@@ -65,6 +71,7 @@ class MakeSystem {
   }
 
   void clear_project();
+  std::vector<std::string> get_loaded_projects() const { return m_loaded_projects; }
 
   /*!
    * Get the prefix that the project has requested for all compiler outputs
@@ -84,6 +91,9 @@ class MakeSystem {
                         std::unordered_set<std::string>* result_set) const;
 
   goos::Interpreter m_goos;
+
+  std::optional<REPL::Config> m_repl_config;
+  std::vector<std::string> m_loaded_projects;
 
   std::unordered_map<std::string, std::shared_ptr<MakeStep>> m_output_to_step;
   std::unordered_map<std::string, std::shared_ptr<Tool>> m_tools;

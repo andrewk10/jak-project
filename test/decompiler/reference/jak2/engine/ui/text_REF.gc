@@ -36,66 +36,66 @@
 (kmemclose)
 
 ;; definition for method 7 of type game-text-info
-(defmethod relocate game-text-info ((obj game-text-info) (arg0 int))
+(defmethod relocate ((this game-text-info) (offset int))
   (let ((v1-1 (-> *level* loading-level)))
     (when v1-1
-      (set! (-> v1-1 loaded-text-info (-> v1-1 loaded-text-info-count)) obj)
+      (set! (-> v1-1 loaded-text-info (-> v1-1 loaded-text-info-count)) this)
       (+! (-> v1-1 loaded-text-info-count) 1)
       )
     )
-  obj
+  this
   )
 
 ;; definition for method 4 of type game-text-info
-(defmethod length game-text-info ((obj game-text-info))
-  (-> obj length)
+(defmethod length ((this game-text-info))
+  (-> this length)
   )
 
 ;; definition for method 5 of type game-text-info
 ;; WARN: Return type mismatch uint vs int.
-(defmethod asize-of game-text-info ((obj game-text-info))
-  (the-as int (+ (-> obj type size) (* (-> obj length) 8)))
+(defmethod asize-of ((this game-text-info))
+  (the-as int (+ (-> this type size) (* (-> this length) 8)))
   )
 
 ;; definition for method 3 of type game-text-info
-(defmethod inspect game-text-info ((obj game-text-info))
-  (format #t "[~8x] ~A~%" obj (-> obj type))
-  (format #t "~Tlength: ~D~%" (-> obj length))
-  (format #t "~Tlanguage-id: ~D~%" (-> obj language-id))
-  (format #t "~Tgroup-name: ~A~%" (-> obj group-name))
-  (format #t "~Tdata[~D]: @ #x~X~%" (-> obj length) (-> obj data))
-  (dotimes (s5-0 (-> obj length))
-    (format #t "~T  [~D] #x~X ~A~%" s5-0 (-> obj data s5-0 id) (-> obj data s5-0 text))
+(defmethod inspect ((this game-text-info))
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~Tlength: ~D~%" (-> this length))
+  (format #t "~Tlanguage-id: ~D~%" (-> this language-id))
+  (format #t "~Tgroup-name: ~A~%" (-> this group-name))
+  (format #t "~Tdata[~D]: @ #x~X~%" (-> this length) (-> this data))
+  (dotimes (s5-0 (-> this length))
+    (format #t "~T  [~D] #x~X ~A~%" s5-0 (-> this data s5-0 id) (-> this data s5-0 text))
     )
-  obj
+  this
   )
 
 ;; definition for method 8 of type game-text-info
-(defmethod mem-usage game-text-info ((obj game-text-info) (arg0 memory-usage-block) (arg1 int))
-  (set! (-> arg0 length) (max 84 (-> arg0 length)))
-  (set! (-> arg0 data 83 name) "string")
-  (+! (-> arg0 data 83 count) 1)
-  (let ((v1-6 (asize-of obj)))
-    (+! (-> arg0 data 83 used) v1-6)
-    (+! (-> arg0 data 83 total) (logand -16 (+ v1-6 15)))
+(defmethod mem-usage ((this game-text-info) (usage memory-usage-block) (flags int))
+  (set! (-> usage length) (max 84 (-> usage length)))
+  (set! (-> usage data 83 name) "string")
+  (+! (-> usage data 83 count) 1)
+  (let ((v1-6 (asize-of this)))
+    (+! (-> usage data 83 used) v1-6)
+    (+! (-> usage data 83 total) (logand -16 (+ v1-6 15)))
     )
-  (dotimes (s4-0 (-> obj length))
-    (set! (-> arg0 length) (max 84 (-> arg0 length)))
-    (set! (-> arg0 data 83 name) "string")
-    (+! (-> arg0 data 83 count) 1)
-    (let ((v1-18 (asize-of (-> obj data s4-0 text))))
-      (+! (-> arg0 data 83 used) v1-18)
-      (+! (-> arg0 data 83 total) (logand -16 (+ v1-18 15)))
+  (dotimes (s4-0 (-> this length))
+    (set! (-> usage length) (max 84 (-> usage length)))
+    (set! (-> usage data 83 name) "string")
+    (+! (-> usage data 83 count) 1)
+    (let ((v1-18 (asize-of (-> this data s4-0 text))))
+      (+! (-> usage data 83 used) v1-18)
+      (+! (-> usage data 83 total) (logand -16 (+ v1-18 15)))
       )
     )
-  obj
+  this
   )
 
 ;; definition for function convert-korean-text
 (defun convert-korean-text ((arg0 string))
   "Converts the provided [[string]] of [[game-text]] into korean. Returns a [[string]]"
   (local-vars (v1-21 int))
-  (let ((gp-0 (-> arg0 data)))
+  (let ((charp (-> arg0 data)))
     *expanded-text-line0*
     (let ((s4-0 0))
       0
@@ -113,26 +113,26 @@
             (clear s3-0)
             (while (< s4-0 s5-0)
               (cond
-                ((= (-> gp-0 s4-0) 3)
+                ((= (-> charp s4-0) 3)
                  (+! s4-0 1)
-                 (while (and (< s4-0 s5-0) (!= (-> gp-0 s4-0) 3) (!= (-> gp-0 s4-0) 4))
-                   (set! (-> s3-0 data s1-0) (-> gp-0 s4-0))
+                 (while (and (< s4-0 s5-0) (!= (-> charp s4-0) 3) (!= (-> charp s4-0) 4))
+                   (set! (-> s3-0 data s1-0) (-> charp s4-0))
                    (+! s4-0 1)
                    (+! s1-0 1)
                    )
                  )
                 (else
                   (let ((v1-17 (+ s4-0 1)))
-                    (-> gp-0 v1-17)
+                    (-> charp v1-17)
                     (set! s4-0 (+ v1-17 1))
                     )
                   (set! (-> s3-0 data s1-0) (the-as uint 126))
                   (let ((v1-19 (+ s1-0 1)))
                     (set! (-> s3-0 data v1-19) (the-as uint 89))
                     (let ((v1-20 (+ v1-19 1)))
-                      (while (and (< s4-0 s5-0) (< v1-20 s2-0) (!= (-> gp-0 s4-0) 3) (!= (-> gp-0 s4-0) 4))
+                      (while (and (< s4-0 s5-0) (< v1-20 s2-0) (!= (-> charp s4-0) 3) (!= (-> charp s4-0) 4))
                         (cond
-                          ((= (-> gp-0 s4-0) 5)
+                          ((= (-> charp s4-0) 5)
                            (set! (-> s3-0 data v1-20) (the-as uint 1))
                            (+! s4-0 1)
                            (set! v1-21 (+ v1-20 1))
@@ -142,7 +142,7 @@
                             (set! v1-21 (+ v1-20 1))
                             )
                           )
-                        (set! (-> s3-0 data v1-21) (-> gp-0 s4-0))
+                        (set! (-> s3-0 data v1-21) (-> charp s4-0))
                         (+! s4-0 1)
                         (let ((v1-22 (+ v1-21 1)))
                           (set! (-> s3-0 data v1-22) (the-as uint 126))
@@ -181,9 +181,9 @@
   )
 
 ;; definition for method 9 of type game-text-info
-(defmethod lookup-text! game-text-info ((obj game-text-info) (arg0 game-text-id) (arg1 symbol))
+(defmethod lookup-text! ((this game-text-info) (arg0 text-id) (arg1 symbol))
   (cond
-    ((= obj #f)
+    ((= this #f)
      (cond
        (arg1
          (the-as string #f)
@@ -196,12 +196,12 @@
      )
     (else
       (let* ((a1-2 0)
-             (a3-0 (+ (-> obj length) 1))
+             (a3-0 (+ (-> this length) 1))
              (v1-2 (/ (+ a1-2 a3-0) 2))
              )
         (let ((t0-0 -1))
-          (while (and (!= (-> obj data v1-2 id) arg0) (!= v1-2 t0-0))
-            (if (< (the-as uint arg0) (the-as uint (-> obj data v1-2 id)))
+          (while (and (!= (-> this data v1-2 id) arg0) (!= v1-2 t0-0))
+            (if (< (the-as uint arg0) (the-as uint (-> this data v1-2 id)))
                 (set! a3-0 v1-2)
                 (set! a1-2 v1-2)
                 )
@@ -210,7 +210,7 @@
             )
           )
         (cond
-          ((!= (-> obj data v1-2 id) arg0)
+          ((!= (-> this data v1-2 id) arg0)
            (cond
              (arg1
                (the-as string #f)
@@ -221,11 +221,11 @@
                )
              )
            )
-          ((= (-> obj language-id) 6)
-           (convert-korean-text (-> obj data v1-2 text))
+          ((= (-> this language-id) 6)
+           (convert-korean-text (-> this data v1-2 text))
            )
           (else
-            (-> obj data v1-2 text)
+            (-> this data v1-2 text)
             )
           )
         )
@@ -234,11 +234,11 @@
   )
 
 ;; definition for method 23 of type level
-(defmethod lookup-text level ((obj level) (arg0 game-text-id) (arg1 symbol))
+(defmethod lookup-text ((this level) (arg0 text-id) (arg1 symbol))
   (let ((v1-0 *common-text*))
-    (dotimes (a3-0 (-> obj loaded-text-info-count))
-      (if (= (-> obj loaded-text-info a3-0 language-id) (-> *setting-control* user-current language))
-          (set! v1-0 (-> obj loaded-text-info a3-0))
+    (dotimes (a3-0 (-> this loaded-text-info-count))
+      (if (= (-> this loaded-text-info a3-0 language-id) (-> *setting-control* user-current language))
+          (set! v1-0 (-> this loaded-text-info a3-0))
           )
       )
     (lookup-text! v1-0 arg0 arg1)
@@ -252,7 +252,7 @@
 ;; WARN: Found some very strange gotos. Check result carefully, this is not well tested.
 (defun load-game-text-info ((arg0 string) (arg1 (pointer object)) (arg2 kheap))
   "Load text, if needed. txt-name is the group name, curr-text is the _symbol_ for
-the game-text-info, and heap is the heap to load to. The heap will be cleared."
+   the game-text-info, and heap is the heap to load to. The heap will be cleared."
   (local-vars (v0-3 int) (sv-16 game-text-info) (sv-24 int) (sv-32 int) (sv-40 int))
   (set! sv-16 (the-as game-text-info (-> arg1 0)))
   (set! sv-24 (the-as int (-> *setting-control* user-current language)))
@@ -330,8 +330,8 @@ the game-text-info, and heap is the heap to load to. The heap will be cleared."
 ;; WARN: Return type mismatch int vs none.
 (defun load-level-text-files ((arg0 int))
   "Load the text files needed for level idx.
-This function made more sense back when text files were split up, but in the end they put everything
-in a single text group and file."
+   This function made more sense back when text files were split up, but in the end they put everything
+   in a single text group and file."
   (if (or *level-text-file-load-flag* (>= arg0 0))
       (load-game-text-info "common" (&-> '*common-text* value) *common-text-heap*)
       )
@@ -388,7 +388,7 @@ in a single text group and file."
 
 ;; definition for function print-game-text-scaled
 ;; WARN: Return type mismatch int vs none.
-(defun print-game-text-scaled ((arg0 string) (arg1 float) (arg2 font-context) (arg3 int))
+(defun print-game-text-scaled ((arg0 string) (arg1 float) (arg2 font-context) (arg3 bucket-id))
   "Print text, with a given scaling"
   (let ((f26-0 (-> arg2 width))
         (f30-0 (-> arg2 height))
@@ -402,7 +402,7 @@ in a single text group and file."
       (if (logtest? (-> arg2 flags) (font-flags middle))
           (+! (-> arg2 origin x) (* 0.5 (- f26-0 f0-1)))
           )
-      (if (logtest? (-> arg2 flags) (font-flags left))
+      (if (logtest? (-> arg2 flags) (font-flags middle-vert))
           (+! (-> arg2 origin y) (* 0.5 (- f30-0 f1-2)))
           )
       (let ((v1-10 arg2))
@@ -515,8 +515,8 @@ in a single text group and file."
      (set! sv-20 (-> arg1 origin y))
      (set! sv-24 (-> arg1 flags))
      (set! sv-28 (-> arg1 color))
-     (when (logtest? (-> arg1 flags) (font-flags left))
-       (logclear! (-> arg1 flags) (font-flags left))
+     (when (logtest? (-> arg1 flags) (font-flags middle-vert))
+       (logclear! (-> arg1 flags) (font-flags middle-vert))
        (+! (-> arg1 origin y)
            (the float (the int (* 0.5 (- (-> arg1 height) (print-game-text arg0 arg1 #t 44 (bucket-id progress))))))
            )
@@ -536,7 +536,7 @@ in a single text group and file."
            )
      (set! sv-64 0)
      (if (logtest? (-> arg1 flags) (font-flags middle))
-         (+! (-> arg1 origin x) (* 0.5 (-> arg1 width)))
+         (+! (-> arg1 origin x) (/ (-> arg1 width) 2))
          )
      (set! sv-72 (-> sv-32 0))
      (set! sv-80 0)
@@ -622,25 +622,11 @@ in a single text group and file."
                  (set! sv-64 (+ sv-64 1))
                  )
              (when (not arg2)
-               (let* ((s2-1 (-> *display* frames (-> *display* on-screen) global-buf))
-                      (s3-1 (-> s2-1 base))
-                      )
+               (with-dma-buffer-add-bucket ((s2-1 (-> *display* frames (-> *display* on-screen) global-buf))
+                                            arg4
+                                            )
                  (draw-string *game-text-line* s2-1 arg1)
                  (set! (-> arg1 color) (-> *font-work* last-color))
-                 (let ((a3-2 (-> s2-1 base)))
-                   (let ((v1-121 (the-as object (-> s2-1 base))))
-                     (set! (-> (the-as dma-packet v1-121) dma) (new 'static 'dma-tag :id (dma-tag-id next)))
-                     (set! (-> (the-as dma-packet v1-121) vif0) (new 'static 'vif-tag))
-                     (set! (-> (the-as dma-packet v1-121) vif1) (new 'static 'vif-tag))
-                     (set! (-> s2-1 base) (&+ (the-as pointer v1-121) 16))
-                     )
-                   (dma-bucket-insert-tag
-                     (-> *display* frames (-> *display* on-screen) bucket-group)
-                     arg4
-                     s3-1
-                     (the-as (pointer dma-tag) a3-2)
-                     )
-                   )
                  )
                )
              (set! (-> arg1 origin y) f30-2)

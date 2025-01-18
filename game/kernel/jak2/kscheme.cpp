@@ -4,7 +4,10 @@
 #include <cstdio>
 #include <cstring>
 
+#include "fileio.h"
+
 #include "common/common_types.h"
+#include "common/global_profiler/GlobalProfiler.h"
 #include "common/goal_constants.h"
 #include "common/log/log.h"
 #include "common/symbols.h"
@@ -12,10 +15,8 @@
 #include "game/kernel/common/fileio.h"
 #include "game/kernel/common/kdsnetm.h"
 #include "game/kernel/common/klink.h"
-#include "game/kernel/common/kmalloc.h"
 #include "game/kernel/common/kmemcard.h"
 #include "game/kernel/common/kprint.h"
-#include "game/kernel/common/kscheme.h"
 #include "game/kernel/jak2/kdgo.h"
 #include "game/kernel/jak2/klink.h"
 #include "game/kernel/jak2/klisten.h"
@@ -48,10 +49,15 @@ void kscheme_init_globals() {
 u64 new_illegal(u32 allocation, u32 type) {
   (void)allocation;
   MsgErr("dkernel: illegal attempt to call new method of static object type %s\n",
-         Ptr<Type>(type)->symbol->name_cstr());
+         symbol_name_cstr(*Ptr<Type>(type)->symbol));
   return s7.offset;
 }
 
+u32 u32_in_fixed_sym(u32 offset) {
+  return Ptr<Symbol4<u32>>(s7.offset + offset)->value();
+}
+
+namespace {
 template <typename T>
 Ptr<Ptr<String>> sym_to_string_ptr(Ptr<Symbol4<T>> in) {
   return Ptr<Ptr<String>>(in.offset + SYM_TO_STRING_OFFSET);
@@ -67,22 +73,19 @@ Ptr<u32> sym_to_hash(Ptr<Symbol4<T>> in) {
   return Ptr<u32>(in.offset + SYM_TO_HASH_OFFSET);
 }
 
-u32 u32_in_fixed_sym(u32 offset) {
-  return Ptr<Symbol4<u32>>(s7.offset + offset)->value();
-}
-
 void fixed_sym_set(u32 offset, u32 value) {
   Ptr<Symbol4<u32>>(s7.offset + offset)->value() = value;
 }
+}  // namespace
 
 u64 alloc_from_heap(u32 heap_symbol, u32 type, s32 size, u32 pp) {
   using namespace jak2_symbols;
   auto heap_ptr = Ptr<Symbol4<Ptr<kheapinfo>>>(heap_symbol)->value();
 
   s32 aligned_size = ((size + 0xf) / 0x10) * 0x10;
-  if ((((heap_symbol == s7.offset + FIX_SYM_GLOBAL_HEAP) ||
-        (heap_symbol == s7.offset + FIX_SYM_DEBUG)) ||
-       (heap_symbol == s7.offset + FIX_SYM_LOADING_LEVEL)) ||
+  if ((heap_symbol == s7.offset + FIX_SYM_GLOBAL_HEAP) ||
+      (heap_symbol == s7.offset + FIX_SYM_DEBUG) ||
+      (heap_symbol == s7.offset + FIX_SYM_LOADING_LEVEL) ||
       (heap_symbol == s7.offset + FIX_SYM_PROCESS_LEVEL_HEAP)) {
     if (!type) {  // no type given, just call it a global-object
       return kmalloc(heap_ptr, size, KMALLOC_MEMSET, "global-object").offset;
@@ -275,20 +278,43 @@ u64 make_debug_string_from_c(const char* c_str) {
 }
 
 extern "C" {
-void _arg_call_linux();
+#ifndef __aarch64__
+#ifdef __APPLE__
+void _arg_call_systemv() asm("_arg_call_systemv");
+void _stack_call_systemv() asm("_stack_call_systemv");
+void _stack_call_win32() asm("_stack_call_win32");
+#else
+void _arg_call_systemv();
+void _stack_call_systemv();
+void _stack_call_win32();
+#endif
+#else
+#if defined(__APPLE__)
+void _arg_call_arm64() asm("_arg_call_arm64");
+void _stack_call_arm64() asm("_stack_call_arm64");
+#else
+void _arg_call_arm64();
+void _stack_call_arm64();
+#endif
+#endif
 }
 
 /*!
  * This creates an OpenGOAL function from a C++ function. Only 6 arguments can be accepted.
  * But calling this function is fast. It used to be really fast but wrong.
  */
-Ptr<Function> make_function_from_c_linux(void* func, bool arg3_is_pp) {
+Ptr<Function> make_function_from_c_systemv(void* func, bool arg3_is_pp) {
   auto mem = Ptr<u8>(alloc_heap_object(s7.offset + FIX_SYM_GLOBAL_HEAP,
                                        u32_in_fixed_sym(FIX_SYM_FUNCTION_TYPE), 0x40, UNKNOWN_PP));
   auto f = (uint64_t)func;
   auto target_function = (u8*)&f;
-  auto trampoline_function_addr = _arg_call_linux;
+#ifndef __aarch64__
+  auto trampoline_function_addr = _arg_call_systemv;
+#else
+  auto trampoline_function_addr = _arg_call_arm64;
+#endif
   auto trampoline = (u8*)&trampoline_function_addr;
+  // TODO - x86 code still being emitted below
 
   // movabs rax, target_function
   int offset = 0;
@@ -388,18 +414,17 @@ Ptr<Function> make_function_from_c_win32(void* func, bool arg3_is_pp) {
   return mem.cast<Function>();
 }
 
-extern "C" {
-void _stack_call_linux();
-void _stack_call_win32();
-}
-
-Ptr<Function> make_stack_arg_function_from_c_linux(void* func) {
+Ptr<Function> make_stack_arg_function_from_c_systemv(void* func) {
   // allocate a function object on the global heap
   auto mem = Ptr<u8>(alloc_heap_object(s7.offset + FIX_SYM_GLOBAL_HEAP,
                                        u32_in_fixed_sym(FIX_SYM_FUNCTION_TYPE), 0x40, UNKNOWN_PP));
   auto f = (uint64_t)func;
   auto target_function = (u8*)&f;
-  auto trampoline_function_addr = _stack_call_linux;
+#ifndef __aarch64__
+  auto trampoline_function_addr = _stack_call_systemv;
+#else
+  auto trampoline_function_addr = _stack_call_arm64;
+#endif
   auto trampoline = (u8*)&trampoline_function_addr;
 
   // movabs rax, target_function
@@ -429,6 +454,7 @@ Ptr<Function> make_stack_arg_function_from_c_linux(void* func) {
   return mem.cast<Function>();
 }
 
+#ifdef _WIN32
 /*!
  * Create a GOAL function from a C function.  This calls a windows function, but doesn't scramble
  * the argument order.  It's supposed to be used with _format_win32 which assumes GOAL order.
@@ -469,6 +495,7 @@ Ptr<Function> make_stack_arg_function_from_c_win32(void* func) {
 
   return mem.cast<Function>();
 }
+#endif
 
 /*!
  * Create a GOAL function from a C function. This doesn't export it as a global function, it just
@@ -478,7 +505,9 @@ Ptr<Function> make_stack_arg_function_from_c_win32(void* func) {
  */
 Ptr<Function> make_function_from_c(void* func, bool arg3_is_pp = false) {
 #ifdef __linux__
-  return make_function_from_c_linux(func, arg3_is_pp);
+  return make_function_from_c_systemv(func, arg3_is_pp);
+#elif __APPLE__
+  return make_function_from_c_systemv(func, arg3_is_pp);
 #elif _WIN32
   return make_function_from_c_win32(func, arg3_is_pp);
 #endif
@@ -486,7 +515,9 @@ Ptr<Function> make_function_from_c(void* func, bool arg3_is_pp = false) {
 
 Ptr<Function> make_stack_arg_function_from_c(void* func) {
 #ifdef __linux__
-  return make_stack_arg_function_from_c_linux(func);
+  return make_stack_arg_function_from_c_systemv(func);
+#elif __APPLE__
+  return make_stack_arg_function_from_c_systemv(func);
 #elif _WIN32
   return make_stack_arg_function_from_c_win32(func);
 #endif
@@ -1380,7 +1411,6 @@ u64 inspect_type(u32 obj) {
   } else {
     auto typ = Ptr<Type>(obj);
     auto sym = typ->symbol;
-    ;
 
     cprintf("[%8x] type\n\tname: %s\n\tparent: ", obj, sym_to_string(sym)->data());
     print_object(typ->parent.offset);
@@ -1433,11 +1463,11 @@ u64 inspect_link_block(u32 ob) {
   return ob;
 }
 
+namespace {
 Ptr<Symbol4<Ptr<Type>>> get_fixed_type_symbol(u32 offset) {
   return (s7 + offset).cast<Symbol4<Ptr<Type>>>();
 }
 
-namespace {
 u64 pack_type_flag(u64 methods, u64 heap_base, u64 size) {
   return (methods << 32) + (heap_base << 16) + (size);
 }
@@ -1718,6 +1748,7 @@ int InitHeapAndSymbol() {
   // load kernel!
 
   if (MasterUseKernel) {
+    auto p = scoped_prof("load-kernel-dgo");
     *EnableMethodSet = *EnableMethodSet + 1;
     load_and_link_dgo_from_c("kernel", kglobalheap,
                              LINK_FLAG_OUTPUT_LOAD | LINK_FLAG_EXECUTE | LINK_FLAG_PRINT_LOGIN,
@@ -1726,10 +1757,9 @@ int InitHeapAndSymbol() {
 
     auto kernel_version = intern_from_c("*kernel-version*")->value();
     if (!kernel_version || ((kernel_version >> 0x13) != KERNEL_VERSION_MAJOR)) {
-      MsgErr("\n");
-      MsgErr(
-          "dkernel: compiled C kernel version is %d.%d but the goal kernel is %d.%d\n\tfrom the "
-          "goal> prompt (:mch) then mkee your kernel in linux.\n",
+      lg::error(
+          "Kernel version mismatch! Compiled C kernel version is {}.{} but"
+          "the goal kernel is {}.{}",
           KERNEL_VERSION_MAJOR, KERNEL_VERSION_MINOR, kernel_version >> 0x13,
           (kernel_version >> 3) & 0xffff);
       return -1;
@@ -1747,7 +1777,10 @@ int InitHeapAndSymbol() {
   InitListener();
 
   // Do final initialization, including loading and initializing the engine.
-  InitMachineScheme();
+  {
+    auto p = scoped_prof("init-machine-scheme");
+    InitMachineScheme();
+  }
   kmemclose();
   return 0;
 }
@@ -1767,11 +1800,19 @@ u64 loadc(const char* /*file_name*/, kheapinfo* /*heap*/, u32 /*flags*/) {
   return 0;
 }
 
-u64 loado(u32 file_name_in, u32 /*heap_in*/) {
-  // ASSERT(false);
+u64 loado(u32 file_name_in, u32 heap_in) {
+  char loadName[272];
   Ptr<String> file_name(file_name_in);
+  Ptr<kheapinfo> heap(heap_in);
   printf("****** CALL TO loado(%s) ******\n", file_name->data());
-  return s7.offset;
+  kstrcpy(loadName, MakeFileName(DATA_FILE_TYPE, file_name->data(), 0));
+  s32 returnValue = load_and_link(file_name->data(), loadName, heap.c(), LINK_FLAG_PRINT_LOGIN);
+
+  if (returnValue < 0) {
+    return s7.offset;
+  } else {
+    return returnValue;
+  }
 }
 
 /*!
@@ -1782,11 +1823,13 @@ u64 unload(u32 name) {
   return 0;
 }
 
-s64 load_and_link(const char* /*filename*/,
-                  char* /*decode_name*/,
-                  kheapinfo* /*heap*/,
-                  u32 /*flags*/) {
-  ASSERT(false);
-  return 0;
+s64 load_and_link(const char* filename, char* decode_name, kheapinfo* heap, u32 flags) {
+  (void)filename;
+  s32 sz;
+  auto rv = FileLoad(decode_name, make_ptr(heap), Ptr<u8>(0), KMALLOC_ALIGN_64, &sz);
+  if (((s32)rv.offset) > -1) {
+    return (s32)link_and_exec(rv, decode_name, sz, make_ptr(heap), flags, false).offset;
+  }
+  return (s32)rv.offset;
 }
 }  // namespace jak2

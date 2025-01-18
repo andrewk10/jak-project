@@ -11,6 +11,8 @@
 #include "game/graphics/opengl_renderer/loader/Loader.h"
 #include "game/graphics/texture/TexturePool.h"
 
+struct Fbo;
+
 struct LevelVis {
   bool valid = false;
   u8 data[2048];
@@ -24,8 +26,8 @@ class EyeRenderer;
 struct SharedRenderState {
   explicit SharedRenderState(std::shared_ptr<TexturePool> _texture_pool,
                              std::shared_ptr<Loader> _loader,
-                             GameVersion version)
-      : shaders(version), texture_pool(_texture_pool), loader(_loader) {}
+                             GameVersion _version)
+      : shaders(_version), texture_pool(_texture_pool), loader(_loader), version(_version) {}
   ShaderLibrary shaders;
   std::shared_ptr<TexturePool> texture_pool;
   std::shared_ptr<Loader> loader;
@@ -45,9 +47,13 @@ struct SharedRenderState {
 
   void reset();
   bool has_pc_data = false;
-  LevelVis occlusion_vis[6];
+
+  // limit is arbitrary so let's go ham in case we want more levels in the future
+  LevelVis occlusion_vis[32];
 
   math::Vector4f camera_planes[4];
+
+  // including transformation, rotation, perspective
   math::Vector4f camera_matrix[4];
   math::Vector4f camera_hvdf_off;
   math::Vector4f camera_fog;
@@ -78,6 +84,9 @@ struct SharedRenderState {
   int bucket_for_vis_copy = 0;
   int num_vis_to_copy = 0;
   GameVersion version;
+  u64 frame_idx = 0;
+
+  bool stencil_dirty = false;
 };
 
 /*!
@@ -89,6 +98,7 @@ class BucketRenderer {
   virtual void render(DmaFollower& dma,
                       SharedRenderState* render_state,
                       ScopedProfilerNode& prof) = 0;
+  std::string name() const;
   std::string name_and_id() const;
   virtual ~BucketRenderer() = default;
   bool& enabled() { return m_enabled; }
@@ -135,6 +145,17 @@ class EmptyBucketRenderer : public BucketRenderer {
 class SkipRenderer : public BucketRenderer {
  public:
   SkipRenderer(const std::string& name, int my_id);
+  void render(DmaFollower& dma, SharedRenderState* render_state, ScopedProfilerNode& prof) override;
+  bool empty() const override { return true; }
+  void draw_debug_window() override {}
+};
+
+/*!
+ * Renderer that ignores and prints all DMA transfers.
+ */
+class PrintRenderer : public BucketRenderer {
+ public:
+  PrintRenderer(const std::string& name, int my_id);
   void render(DmaFollower& dma, SharedRenderState* render_state, ScopedProfilerNode& prof) override;
   bool empty() const override { return true; }
   void draw_debug_window() override {}

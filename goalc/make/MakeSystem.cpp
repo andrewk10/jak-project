@@ -6,10 +6,11 @@
 #include "common/util/Timer.h"
 #include "common/util/string_util.h"
 
+#include "goalc/make/CompilerReport.h"
 #include "goalc/make/Tools.h"
 
-#include "third-party/fmt/color.h"
-#include "third-party/fmt/core.h"
+#include "fmt/color.h"
+#include "fmt/core.h"
 
 std::string MakeStep::print() const {
   std::string result = fmt::format("Tool {} with inputs", tool);
@@ -38,7 +39,8 @@ std::string MakeStep::print() const {
   return result;
 }
 
-MakeSystem::MakeSystem(const std::string& username) : m_goos(username) {
+MakeSystem::MakeSystem(const std::optional<REPL::Config> repl_config, const std::string& username)
+    : m_goos(username), m_repl_config(repl_config) {
   m_goos.register_form("defstep", [=](const goos::Object& obj, goos::Arguments& args,
                                       const std::shared_ptr<goos::EnvironmentObject>& env) {
     return handle_defstep(obj, args, env);
@@ -81,10 +83,22 @@ MakeSystem::MakeSystem(const std::string& username) : m_goos(username) {
     return handle_get_gsrc_folder(obj, args, env);
   });
 
+  m_goos.register_form("get-game-version-folder",
+                       [=](const goos::Object& obj, goos::Arguments& args,
+                           const std::shared_ptr<goos::EnvironmentObject>& env) {
+                         return handle_get_game_version_folder(obj, args, env);
+                       });
+
   m_goos.set_global_variable_to_symbol("ASSETS", "#t");
 
-  set_constant("*iso-data*", file_util::get_file_path({"iso_data"}));
-  set_constant("*use-iso-data-path*", false);
+  if (m_repl_config && !m_repl_config->iso_path.empty()) {
+    set_constant("*iso-data*",
+                 file_util::get_iso_dir_for_game(m_repl_config->game_version).string());
+    set_constant("*use-iso-data-path*", true);
+  } else {
+    set_constant("*iso-data*", file_util::get_file_path({"iso_data"}));
+    set_constant("*use-iso-data-path*", false);
+  }
 
   add_tool<DgoTool>();
   add_tool<TpageDirTool>();
@@ -93,7 +107,11 @@ MakeSystem::MakeSystem(const std::string& username) : m_goos(username) {
   add_tool<GroupTool>();
   add_tool<TextTool>();
   add_tool<SubtitleTool>();
+  add_tool<SubtitleV2Tool>();
   add_tool<BuildLevelTool>();
+  add_tool<BuildLevel2Tool>();
+  add_tool<BuildLevel3Tool>();
+  add_tool<BuildActorTool>();
 }
 
 /*!
@@ -107,8 +125,9 @@ void MakeSystem::load_project_file(const std::string& file_path) {
   auto data = m_goos.reader.read_from_file({file_path});
   // interpret it, which will call various handlers.
   m_goos.eval(data, m_goos.global_environment.as_env_ptr());
-  lg::print("Loaded project {} with {} steps in {} ms\n", file_path, m_output_to_step.size(),
+  lg::debug("Loaded project {} with {} steps in {} ms\n", file_path, m_output_to_step.size(),
             (int)timer.getMs());
+  m_loaded_projects.push_back(file_path);
 }
 
 goos::Object MakeSystem::handle_defstep(const goos::Object& form,
@@ -128,7 +147,7 @@ goos::Object MakeSystem::handle_defstep(const goos::Object& form,
     step->outputs.push_back(m_path_map.apply_remaps(obj.as_string()->data));
   });
 
-  step->tool = args.get_named("tool").as_symbol()->name;
+  step->tool = args.get_named("tool").as_symbol().name_ptr;
 
   if (m_tools.find(step->tool) == m_tools.end()) {
     throw std::runtime_error(fmt::format("The tool {} is unknown.", step->tool));
@@ -175,6 +194,7 @@ goos::Object MakeSystem::handle_defstep(const goos::Object& form,
  *
  */
 void MakeSystem::clear_project() {
+  m_loaded_projects.clear();
   m_output_to_step.clear();
 }
 
@@ -197,7 +217,7 @@ goos::Object MakeSystem::handle_basename(const goos::Object& form,
   va_check(form, args, {goos::ObjectType::STRING}, {});
   fs::path input(args.unnamed.at(0).as_string()->data);
 
-  return goos::StringObject::make_new(input.filename().u8string());
+  return goos::StringObject::make_new(input.filename().string());
 }
 
 goos::Object MakeSystem::handle_stem(const goos::Object& form,
@@ -207,7 +227,7 @@ goos::Object MakeSystem::handle_stem(const goos::Object& form,
   va_check(form, args, {goos::ObjectType::STRING}, {});
   fs::path input(args.unnamed.at(0).as_string()->data);
 
-  return goos::StringObject::make_new(input.stem().u8string());
+  return goos::StringObject::make_new(input.stem().string());
 }
 
 goos::Object MakeSystem::handle_get_gsrc_path(const goos::Object& form,
@@ -224,7 +244,7 @@ goos::Object MakeSystem::handle_get_gsrc_path(const goos::Object& form,
   if (m_gsrc_files.count(file_name) != 0) {
     return goos::StringObject::make_new(m_gsrc_files.at(file_name));
   } else {
-    return goos::SymbolObject::make_new(m_goos.reader.symbolTable, "#f");
+    return goos::Object::make_symbol(&m_goos.reader.symbolTable, "#f");
   }
 }
 
@@ -267,7 +287,7 @@ goos::Object MakeSystem::handle_set_gsrc_folder(
   auto src_files = file_util::find_files_recursively(folder_scan, std::regex(".*\\.gc"));
 
   for (const auto& path : src_files) {
-    auto name = file_util::base_name_no_ext(path.u8string());
+    auto name = file_util::base_name_no_ext(path.string());
     auto gsrc_path =
         file_util::convert_to_unix_path_separators(file_util::split_path_at(path, m_gsrc_folder));
     // TODO - this is only "safe" because the current OpenGOAL system requires globally unique
@@ -294,6 +314,19 @@ goos::Object MakeSystem::handle_get_gsrc_folder(
     out += part;
   }
   return goos::StringObject::make_new(out);
+}
+
+goos::Object MakeSystem::handle_get_game_version_folder(
+    const goos::Object& form,
+    goos::Arguments& args,
+    const std::shared_ptr<goos::EnvironmentObject>& env) {
+  m_goos.eval_args(&args, env);
+  va_check(form, args, {}, {});
+  if (m_repl_config) {
+    return goos::StringObject::make_new(m_repl_config->game_version_folder);
+  } else {
+    return goos::StringObject::make_new("");
+  }
 }
 
 void MakeSystem::get_dependencies(const std::string& master_target,
@@ -416,7 +449,7 @@ void print_input(const std::vector<std::string>& in, char end) {
 }
 }  // namespace
 
-bool MakeSystem::make(const std::string& target_in, bool force, bool verbose) {
+bool MakeSystem::make(const std::string& target_in, bool force, bool verbose, bool gen_report) {
   std::string target = m_path_map.apply_remaps(target_in);
   auto deps = get_dependencies(target);
   //  lg::print("All deps:\n");
@@ -431,6 +464,22 @@ bool MakeSystem::make(const std::string& target_in, bool force, bool verbose) {
   //  for (auto& dep : filtered_deps) {
   //    lg::print("{}\n", dep);
   //  }
+
+  fs::path report_path;
+  std::string report_output;
+  std::string report_contents;
+  if (gen_report) {
+    report_path = file_util::get_jak_project_dir() / "goalc-report.html";
+    lg::print("Will save compiler report to - {}", report_path.string());
+    // Check if a report is already there, if it is, we'll append to it instead of overwriting it
+    if (file_util::file_exists(report_path.string())) {
+      report_output = file_util::read_text_file(report_path);
+    } else {
+      report_output = compiler_report_base;
+    }
+    report_contents += fmt::format("tests.push({{'name': \"Test - {}\",'files': {{",
+                                   str_util::current_isotimestamp());
+  }
 
   Timer make_timer;
   lg::print("Building {} targets...\n", deps.size());
@@ -461,25 +510,39 @@ bool MakeSystem::make(const std::string& target_in, bool force, bool verbose) {
       return false;
     }
 
+    const auto seconds = step_timer.getSeconds();
     if (verbose) {
-      if (step_timer.getSeconds() > 0.05) {
-        lg::print(fg(fmt::color::yellow), " {:.3f}\n", step_timer.getSeconds());
+      if (seconds > 0.05) {
+        lg::print(fg(fmt::color::yellow), " {:.3f}\n", seconds);
       } else {
-        lg::print(" {:.3f}\n", step_timer.getSeconds());
+        lg::print(" {:.3f}\n", seconds);
       }
     } else {
-      if (step_timer.getSeconds() > 0.05) {
+      if (seconds > 0.05) {
         lg::print("[{:3d}%] [{:8s}] ", percent, tool->name());
-        lg::print(fg(fmt::color::yellow), "{:.3f} ", step_timer.getSeconds());
+        lg::print(fg(fmt::color::yellow), "{:.3f} ", seconds);
         print_input(rule->input, '\n');
       } else {
-        lg::print("[{:3d}%] [{:8s}] {:.3f} ", percent, tool->name(), step_timer.getSeconds());
+        lg::print("[{:3d}%] [{:8s}] {:.3f} ", percent, tool->name(), seconds);
         print_input(rule->input, '\n');
       }
+    }
+
+    if (gen_report) {
+      report_contents +=
+          fmt::format("\"{}\": {}{}", str_util::split_string(rule->input.at(0), "/").back(),
+                      seconds, i == deps.size() ? "" : ",");
     }
   }
   lg::print("\nSuccessfully built all {} targets in {:.3f}s\n", deps.size(),
             make_timer.getSeconds());
+  if (gen_report) {
+    report_contents += fmt::format("}}, 'total': {}}});", make_timer.getSeconds());
+    str_util::replace(report_output, "// DATA ENDS\n",
+                      fmt::format("{}\n// DATA ENDS\n", report_contents));
+    file_util::write_text_file(report_path, report_output);
+    lg::print("Saved report to: {}\n", report_path.string());
+  }
   return true;
 }
 
@@ -489,4 +552,8 @@ void MakeSystem::set_constant(const std::string& name, const std::string& value)
 
 void MakeSystem::set_constant(const std::string& name, bool value) {
   m_goos.set_global_variable_to_symbol(name, value ? "#t" : "#f");
+}
+
+void MakeSystem::set_constant(const std::string& name, int value) {
+  m_goos.set_global_variable_to_int(name, value);
 }

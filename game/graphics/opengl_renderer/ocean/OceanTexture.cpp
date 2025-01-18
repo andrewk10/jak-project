@@ -62,12 +62,13 @@ void OceanTexture::init_textures(TexturePool& pool, GameVersion version) {
   in.h = TEX0_SIZE;
   in.debug_page_name = "PC-OCEAN";
   in.debug_name = fmt::format("pc-ocean-mip-{}", m_generate_mipmaps);
-  in.id = pool.allocate_pc_port_texture();
+  in.id = pool.allocate_pc_port_texture(version);
   switch (version) {
     case GameVersion::Jak1:
       m_tex0_gpu = pool.give_texture_and_load_to_vram(in, OCEAN_TEX_TBP_JAK1);
       break;
     case GameVersion::Jak2:
+    case GameVersion::Jak3:
       m_tex0_gpu = pool.give_texture_and_load_to_vram(in, OCEAN_TEX_TBP_JAK2);
       break;
   }
@@ -75,7 +76,8 @@ void OceanTexture::init_textures(TexturePool& pool, GameVersion version) {
 
 void OceanTexture::draw_debug_window() {
   if (m_tex0_gpu) {
-    ImGui::Image((void*)m_tex0_gpu->gpu_textures.at(0).gl, ImVec2(m_tex0_gpu->w, m_tex0_gpu->h));
+    ImGui::Image((void*)(u64)m_tex0_gpu->gpu_textures.at(0).gl,
+                 ImVec2(m_tex0_gpu->w, m_tex0_gpu->h));
   }
 }
 

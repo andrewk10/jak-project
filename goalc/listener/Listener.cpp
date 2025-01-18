@@ -28,12 +28,12 @@
 
 #include "common/cross_sockets/XSocket.h"
 #include "common/util/Assert.h"
-#include "common/versions.h"
+#include "common/versions/versions.h"
 #include "common/log/log.h"
 
 #include "Listener.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 // clang-format on
 
 using namespace versions;
@@ -87,6 +87,10 @@ bool Listener::is_connected() const {
  * Returns true if successfully connected.
  */
 bool Listener::connect_to_target(int n_tries, const std::string& ip, int port) {
+  if (port == -1) {
+    port = m_default_port;
+  }
+
   if (m_connected) {
     printf("already connected!\n");
     return true;

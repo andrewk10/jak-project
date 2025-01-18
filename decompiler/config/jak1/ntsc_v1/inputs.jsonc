@@ -9,9 +9,7 @@
   // you want to run on the entire game.
   "dgo_names": [
     "CGO/KERNEL.CGO",
-    "CGO/ENGINE.CGO",
     "CGO/GAME.CGO",
-    "CGO/ART.CGO",
     "DGO/BEA.DGO",
     "DGO/CIT.DGO",
     "CGO/COMMON.CGO",
@@ -259,10 +257,6 @@
     "TEXT/5COMMON.TXT",
     "TEXT/6COMMON.TXT"
   ],
-
-  // uncomment the next line to extract audio to wave files.
-  //"audio_dir_file_name": "jak1/VAG",
-  "audio_dir_file_name": "",
 
   "streamed_audio_file_names": [
     "VAGWAD.ENG",

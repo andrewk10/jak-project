@@ -13,14 +13,14 @@ void ProgressRenderer::post_render() {
   m_offscreen_mode = false;
 }
 
-void ProgressRenderer::init_textures(TexturePool& texture_pool, GameVersion) {
+void ProgressRenderer::init_textures(TexturePool& texture_pool, GameVersion version) {
   TextureInput in;
   in.gpu_texture = m_minimap_fb.texture();
   in.w = kMinimapWidth;
   in.h = kMinimapHeight;
   in.debug_page_name = "PC-MAP";
   in.debug_name = "map";
-  in.id = texture_pool.allocate_pc_port_texture();
+  in.id = texture_pool.allocate_pc_port_texture(version);
   m_minimap_gpu_tex = texture_pool.give_texture_and_load_to_vram(in, kMinimapVramAddr);
 }
 
@@ -42,6 +42,9 @@ void ProgressRenderer::handle_frame(u64 val,
         break;
       case kMinimapFbp:  // 126
         m_fb_ctxt.emplace(m_minimap_fb);
+        // replace any other texture that the game loaded to this slot with our PC with the GPU
+        // one that we assume will get written to now.
+        render_state->texture_pool->move_existing_to_vram(m_minimap_gpu_tex, kMinimapVramAddr);
         m_offscreen_mode = true;
         break;
       default:

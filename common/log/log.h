@@ -7,8 +7,8 @@
 #endif
 #include <string>
 
-#include "third-party/fmt/color.h"
-#include "third-party/fmt/core.h"
+#include "fmt/color.h"
+#include "fmt/core.h"
 
 namespace lg {
 
@@ -38,13 +38,18 @@ namespace internal {
 // log implementation stuff, not to be called by the user
 void log_message(level log_level, LogTime& now, const char* message);
 void log_print(const char* message);
+void log_vprintf(const char* format, va_list arg_list);
 }  // namespace internal
 
-void set_file(const std::string& filename, const bool should_rotate = true);
+void set_file(const std::string& filename,
+              const bool should_rotate = true,
+              const bool append = false,
+              const std::string& dir = "");
 void set_flush_level(level log_level);
 void set_file_level(level log_level);
 void set_stdout_level(level log_level);
 void set_max_debug_levels();
+void disable_ansi_colors();
 void initialize();
 void finish();
 
@@ -56,13 +61,13 @@ void log(level log_level, const std::string& format, Args&&... args) {
 #else
   now.tim = time(nullptr);
 #endif
-  std::string formatted_message = fmt::format(format, std::forward<Args>(args)...);
+  std::string formatted_message = fmt::format(fmt::runtime(format), std::forward<Args>(args)...);
   internal::log_message(log_level, now, formatted_message.c_str());
 }
 
 template <typename... Args>
 void print(const std::string& format, Args&&... args) {
-  std::string formatted_message = fmt::format(format, std::forward<Args>(args)...);
+  std::string formatted_message = fmt::format(fmt::runtime(format), std::forward<Args>(args)...);
   internal::log_print(formatted_message.c_str());
 }
 template <typename... Args>
@@ -70,6 +75,9 @@ void print(const fmt::text_style& ts, const std::string& format, Args&&... args)
   std::string formatted_message = fmt::format(ts, format, std::forward<Args>(args)...);
   internal::log_print(formatted_message.c_str());
 }
+
+// same as print but uses the C printf instead of fmt
+void printstd(const char* format, va_list arg_list);
 
 template <typename... Args>
 void trace(const std::string& format, Args&&... args) {

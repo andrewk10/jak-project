@@ -1,6 +1,8 @@
 #include "find_defpartgroup.h"
+
 #include "common/goos/PrettyPrinter.h"
 #include "common/util/BitUtils.h"
+
 #include "decompiler/IR2/Form.h"
 #include "decompiler/IR2/GenericElementMatcher.h"
 #include "decompiler/ObjectFile/LinkedObjectFile.h"
@@ -177,7 +179,7 @@ L80:
     item.data.push_back(array_words.at(field_idx + 1));
     item.data.push_back(array_words.at(field_idx + 2));
     item.data.push_back(array_words.at(field_idx + 3));
-    if (item.field_id == 7) {
+    if (item.flags == 4) {
       auto& fld = car(cur_field);
       item.sound_spec = cdr(cdr(cdr(cdr(&fld))))->as_pair()->car;
     }

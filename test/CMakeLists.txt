@@ -1,5 +1,3 @@
-set(CMAKE_CXX_STANDARD 17)
-
 include(${CMAKE_CURRENT_LIST_DIR}/goalc/CMakeLists.txt)
 include(${CMAKE_CURRENT_LIST_DIR}/offline/CMakeLists.txt)
 
@@ -34,11 +32,15 @@ add_executable(goalc-test
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_DataParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_DisasmVifDecompile.cpp
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_VuDisasm.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/game/test_newpad.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/common/formatter/test_formatter.cpp
         ${GOALC_TEST_FRAMEWORK_SOURCES}
-        ${GOALC_TEST_CASES})
+        ${GOALC_TEST_CASES}
+        )
 
-target_link_libraries(goalc-test common runtime compiler gtest decomp Zydis libzstd_static)
+target_link_libraries(goalc-test common runtime compiler gtest decomp Zydis libzstd_static tree-sitter)
+
+add_executable(test_image_resize ${CMAKE_CURRENT_LIST_DIR}/common/test_image_resize.cpp)
+target_link_libraries(test_image_resize common)
 
 if(WIN32)
   target_link_libraries(goalc-test mman)

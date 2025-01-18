@@ -8,13 +8,17 @@
 #include <thread>
 
 #include "common/common_types.h"
-#include "common/versions.h"
+#include "common/versions/versions.h"
 
+#include "game/common/game_common_types.h"
 #include "game/kernel/common/kboot.h"
+#include "system/background_worker.h"
 
 extern u8* g_ee_main_mem;
 extern GameVersion g_game_version;
+extern BackgroundWorker g_background_worker;
+extern int g_server_port;
 
-RuntimeExitStatus exec_runtime(int argc, char** argv);
+RuntimeExitStatus exec_runtime(GameLaunchOptions game_options, int argc, const char** argv);
 
 extern std::thread::id g_main_thread_id;

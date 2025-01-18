@@ -1,26 +1,20 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-(import "goal_src/jak1/import/ef-plane-ag.gc")
-
 ;; definition of type blocking-plane
 (deftype blocking-plane (process-drawable)
   ()
-  :heap-base #x40
-  :method-count-assert 20
-  :size-assert         #xb0
-  :flag-assert         #x14004000b0
   (:states
     blocking-plane-idle
     )
   )
 
 ;; definition for method 3 of type blocking-plane
-(defmethod inspect blocking-plane ((obj blocking-plane))
+(defmethod inspect ((this blocking-plane))
   (let ((t9-0 (method-of-type process-drawable inspect)))
-    (t9-0 obj)
+    (t9-0 this)
     )
-  obj
+  this
   )
 
 ;; failed to figure out what this is:
@@ -37,7 +31,6 @@
       (logior! (-> self mask) (process-mask sleep))
       (suspend)
       )
-    (none)
     )
   )
 
@@ -73,7 +66,7 @@
     (let ((s4-2 (new-stack-matrix0)))
       (vector+! (-> self root trans) s5-0 gp-0)
       (vector-float*! (-> self root trans) (-> self root trans) 0.5)
-      (set! (-> self root trans y) (+ 61440.0 (-> self root trans y)))
+      (+! (-> self root trans y) 61440.0)
       (vector-! (the-as vector (-> s4-2 vector)) gp-0 s5-0)
       (set! (-> self root scale x)
             (* 0.00024414062 (vector-normalize-ret-len! (the-as vector (-> s4-2 vector)) 1.0))

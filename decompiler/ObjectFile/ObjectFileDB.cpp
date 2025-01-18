@@ -16,6 +16,7 @@
 
 #include "common/link_types.h"
 #include "common/log/log.h"
+#include "common/texture/texture_slots.h"
 #include "common/util/BinaryReader.h"
 #include "common/util/BitUtils.h"
 #include "common/util/FileUtil.h"
@@ -29,6 +30,7 @@
 #include "decompiler/data/StrFileReader.h"
 #include "decompiler/data/dir_tpages.h"
 #include "decompiler/data/game_count.h"
+#include "decompiler/data/game_subs.h"
 #include "decompiler/data/game_text.h"
 #include "decompiler/data/tpage.h"
 
@@ -117,6 +119,8 @@ ObjectFileDB::ObjectFileDB(const std::vector<fs::path>& _dgos,
                            const fs::path& obj_file_name_map_file,
                            const std::vector<fs::path>& object_files,
                            const std::vector<fs::path>& str_files,
+                           const std::vector<fs::path>& str_tex_files,
+                           const std::vector<fs::path>& str_art_files,
                            const Config& config)
     : dts(config.game_version), m_version(config.game_version) {
   Timer timer;
@@ -204,18 +208,46 @@ ObjectFileDB::ObjectFileDB(const std::vector<fs::path>& _dgos,
     add_obj_from_dgo(name, name, data.data(), data.size(), "NO-XGO", config);
   }
 
-  lg::info("-Loading {} streaming object files...", str_files.size());
-  for (auto& obj : str_files) {
-    StrFileReader reader(obj);
-    // name from the file name
-    std::string base_name = obj_filename_to_name(obj.string());
-    // name from inside the file (this does a lot of sanity checking)
-    auto obj_name = reader.get_full_name(base_name + ".STR");
-    for (int i = 0; i < reader.chunk_count(); i++) {
-      // append the chunk ID to the full name
-      std::string name = obj_name + fmt::format("+{}", i);
-      auto& data = reader.get_chunk(i);
-      add_obj_from_dgo(name, name, data.data(), data.size(), "NO-XGO", config);
+  if (config.read_spools) {
+    lg::info("-Loading {} streaming object files...", str_files.size());
+    for (auto& obj : str_files) {
+      StrFileReader reader(obj, version());
+      // name from the file name
+      std::string base_name = obj_filename_to_name(obj.string());
+      // name from inside the file (this does a lot of sanity checking)
+      auto obj_name = reader.get_full_name(base_name + ".STR");
+      for (int i = 0; i < reader.chunk_count(); i++) {
+        // append the chunk ID to the full name
+        std::string name = obj_name + fmt::format("+{}", i);
+        auto& data = reader.get_chunk(i);
+        add_obj_from_dgo(name, name, data.data(), data.size(), "ALLSPOOL", config, obj_name);
+      }
+    }
+  }
+
+  if (!str_tex_files.empty()) {
+    lg::info("-Loading {} streaming texture files...", str_tex_files.size());
+    for (auto& obj : str_tex_files) {
+      StrFileReader reader(obj, version());
+      // name from the file name
+      std::string base_name = obj_filename_to_name(obj.string());
+      for (int i = 0; i < reader.chunk_count(); i++) {
+        auto name = reader.get_chunk_texture_name(i);
+        add_obj_from_dgo(name, name, reader.get_chunk(i).data(), reader.get_chunk(i).size(),
+                         "TEXSPOOL", config, name);
+      }
+    }
+  }
+
+  if (!str_art_files.empty()) {
+    lg::info("-Loading {} streaming art files...", str_art_files.size());
+    for (auto& obj : str_art_files) {
+      StrFileReader reader(obj, version());
+      for (int i = 0; i < reader.chunk_count(); i++) {
+        auto name = reader.get_chunk_art_name(i);
+        add_obj_from_dgo(name, name, reader.get_chunk(i).data(), reader.get_chunk(i).size(),
+                         "ARTSPOOL", config, name);
+      }
     }
   }
 
@@ -369,7 +401,8 @@ void ObjectFileDB::add_obj_from_dgo(const std::string& obj_name,
                                     const uint8_t* obj_data,
                                     uint32_t obj_size,
                                     const std::string& dgo_name,
-                                    const Config& config) {
+                                    const Config& config,
+                                    const std::string& cut_name) {
   if (config.banned_objects.find(obj_name) != config.banned_objects.end()) {
     return;
   }
@@ -415,6 +448,7 @@ void ObjectFileDB::add_obj_from_dgo(const std::string& obj_name,
     // if this is the first time we've seen this object file name, add it in the order.
     obj_file_order.push_back(obj_name);
   }
+  data.base_name_from_chunk = cut_name;
   data.record.version = obj_files_by_name[obj_name].size();
   data.name_in_dgo = name_in_dgo;
   data.obj_version = version;
@@ -489,9 +523,10 @@ std::string ObjectFileDB::generate_obj_listing(const std::unordered_set<std::str
   for (auto& obj_file : obj_file_order) {
     for (auto& x : obj_files_by_name.at(obj_file)) {
       std::string dgos = "[";
-      for (auto& y : x.dgo_names) {
-        ASSERT(y.length() >= 5);
-        std::string new_str = y == "NO-XGO" ? y : y.substr(0, y.length() - 4);
+      for (auto& name : x.dgo_names) {
+        ASSERT(name.length() >= 5);
+        std::string new_str =
+            (name == "NO-XGO" || name == "ALLSPOOL") ? name : name.substr(0, name.length() - 4);
         dgos += "\"" + new_str + "\", ";
       }
       dgos.pop_back();
@@ -603,7 +638,9 @@ void ObjectFileDB::write_disassembly(const fs::path& output_dir,
   std::string asm_functions;
 
   for_each_obj([&](ObjectFileData& obj) {
-    if ((obj.obj_version == 3 && disassemble_code) || (obj.obj_version != 3 && disassemble_data)) {
+    if (((obj.obj_version == 3 || (obj.obj_version == 5 && obj.linked_data.has_any_functions())) &&
+         disassemble_code) ||
+        (obj.obj_version != 3 && disassemble_data)) {
       auto file_text = obj.linked_data.print_disassembly(print_hex);
       asm_functions += obj.linked_data.print_asm_function_disassembly(obj.to_unique_name());
       auto file_name = output_dir / (obj.to_unique_name() + ".asm");
@@ -692,7 +729,10 @@ void ObjectFileDB::find_and_write_scripts(const fs::path& output_dir) {
   lg::info(" Total {:.3f} ms", timer.getMs());
 }
 
-std::string ObjectFileDB::process_tpages(TextureDB& tex_db, const fs::path& output_path) {
+std::string ObjectFileDB::process_tpages(TextureDB& tex_db,
+                                         const fs::path& output_path,
+                                         const Config& cfg,
+                                         const fs::path& dump_out) {
   lg::info("- Finding textures in tpages...");
   std::string tpage_string = "tpage-";
   int total = 0, success = 0;
@@ -700,10 +740,29 @@ std::string ObjectFileDB::process_tpages(TextureDB& tex_db, const fs::path& outp
   u64 total_px = 0;
   Timer timer;
 
+  std::vector<std::string> animated_slots;
+  switch (m_version) {
+    case GameVersion::Jak1:  // no animated
+      break;
+    case GameVersion::Jak2:
+      animated_slots = jak2_animated_texture_slots();
+      break;
+    case GameVersion::Jak3:
+      animated_slots = jak3_animated_texture_slots();
+      break;
+    default:
+      ASSERT_NOT_REACHED();
+  }
+
+  for (size_t i = 0; i < animated_slots.size(); i++) {
+    tex_db.animated_tex_output_to_anim_slot[animated_slots[i]] = i;
+  }
+
   std::string result;
   for_each_obj([&](ObjectFileData& data) {
     if (data.name_in_dgo.substr(0, tpage_string.length()) == tpage_string) {
-      auto statistics = process_tpage(data, tex_db, output_path);
+      auto statistics =
+          process_tpage(data, tex_db, output_path, cfg.animated_textures, cfg.save_texture_pngs);
       total += statistics.total_textures;
       success += statistics.successful_textures;
       total_px += statistics.num_px;
@@ -722,7 +781,80 @@ std::string ObjectFileDB::process_tpages(TextureDB& tex_db, const fs::path& outp
     lg::warn("Did not find tpage-dir.");
     return {};
   }
+
+  if (cfg.write_tpage_imports) {
+    file_util::create_dir_if_needed(dump_out);
+    std::string tpage_dump;
+    std::string tex_dump;
+    for (auto& tpage : tex_db.tpage_names) {
+      tpage_dump += print_tpage_for_dump(tpage.second, tpage.first);
+    }
+    for (auto& tex : tex_db.textures) {
+      auto tpage_name = tex_db.tpage_names[tex.second.page];
+      dts.textures.emplace(tex.first, TexInfo{tex.second.name, tpage_name, tex.first & 0x0000ffff});
+      tex_dump += print_tex_for_dump(tex.second.name, tpage_name, tex.first & 0x0000ffff);
+    }
+
+    auto tpage_dump_out = dump_out / "tpages.gc";
+    auto tex_dump_out = dump_out / "textures.gc";
+
+    file_util::write_text_file(tpage_dump_out, tpage_dump);
+    file_util::write_text_file(tex_dump_out, tex_dump);
+  }
+
   return result;
+}
+
+std::string ObjectFileDB::process_all_spool_subtitles(const Config& cfg,
+                                                      const fs::path& image_out) {
+  try {
+    lg::info("- Finding spool subtitles...");
+    Timer timer;
+    int obj_count = 0;
+    int string_count = 0;
+    int image_count = 0;
+    int subs_count = 0;
+    std::unordered_map<std::string, std::vector<SpoolSubtitleRange>> all_subs;
+
+    for_each_obj_in_dgo("ALLSPOOL", [&](ObjectFileData& data) {
+      int this_string_count = 0;
+      int this_image_count = 0;
+      obj_count++;
+      auto this_spool_subs = process_spool_subtitles(data, cfg.text_version);
+      if (!this_spool_subs.empty()) {
+        for (auto& s : this_spool_subs) {
+          subs_count++;
+          for (int i = 0; i < 8; ++i) {
+            if (s.message[i].kind == SpoolSubtitleMessage::Kind::IMAGE) {
+              this_image_count++;
+            } else if (s.message[i].kind == SpoolSubtitleMessage::Kind::STRING) {
+              this_string_count++;
+            }
+          }
+        }
+        auto& spool_subs = all_subs[data.base_name_from_chunk];
+        for (auto& x : this_spool_subs) {
+          bool skip = false;
+          for (auto& other : spool_subs) {
+            skip |= other == x;
+          }
+          if (!skip) {
+            all_subs[data.base_name_from_chunk].push_back(x);
+            image_count += this_image_count;
+            string_count += this_string_count;
+          }
+        }
+      }
+    });
+
+    lg::info("Processed {} subtitles in {} spool objects ({} strings, {} images) in {:.2f} ms",
+             subs_count, obj_count, string_count, image_count, timer.getMs());
+
+    return write_spool_subtitles(cfg.text_version, image_out, all_subs);
+  } catch (std::runtime_error& e) {
+    lg::warn("Error when extracting spool subtitles: {}", e.what());
+    return {};
+  }
 }
 
 std::string ObjectFileDB::process_game_text_files(const Config& cfg) {
@@ -782,16 +914,41 @@ std::string ObjectFileDB::process_game_count_file() {
 }
 
 namespace {
+struct JointGeo {
+  u32 offset{};
+  std::string name;
+  u32 length{};
+};
+
+void get_joint_info(ObjectFileDB& db, ObjectFileData& obj, JointGeo jg) {
+  const auto& words = obj.linked_data.words_by_seg.at(MAIN_SEGMENT);
+  for (size_t i = 0; i < jg.length; ++i) {
+    u32 label = 0x0;
+    if (db.version() == GameVersion::Jak3) {
+      label = words.at((jg.offset / 4) + 11 + i).label_id();
+    } else {
+      label = words.at((jg.offset / 4) + 7 + i).label_id();
+    }
+    const auto& joint = obj.linked_data.labels.at(label);
+    const auto& name =
+        obj.linked_data.get_goal_string_by_label(words.at(joint.offset / 4).label_id());
+    // lg::print("{} joint idx {}/{}: {}\n", jg.name, i + 1, jg.length, name);
+    db.dts.add_joint_node(jg.name, name, i + 1);
+  }
+}
+
 void get_art_info(ObjectFileDB& db, ObjectFileData& obj) {
+  // jak 1/2
   if (obj.obj_version == 4) {
     const auto& words = obj.linked_data.words_by_seg.at(MAIN_SEGMENT);
     if (words.at(0).kind() == LinkedWord::Kind::TYPE_PTR &&
         words.at(0).symbol_name() == "art-group") {
+      auto obj_unique_name = obj.to_unique_name();
+
       // lg::print("art-group {}:\n", obj.to_unique_name());
       auto name = obj.linked_data.get_goal_string_by_label(words.at(2).label_id());
       int length = words.at(3).data;
       // lg::print("  length: {}\n", length);
-      std::unordered_map<int, std::string> art_group_elts;
       for (int i = 0; i < length; ++i) {
         const auto& word = words.at(8 + i);
         if (word.kind() == LinkedWord::Kind::SYM_PTR && word.symbol_name() == "#f") {
@@ -800,11 +957,27 @@ void get_art_info(ObjectFileDB& db, ObjectFileData& obj) {
         const auto& label = obj.linked_data.labels.at(word.label_id());
         auto elt_name =
             obj.linked_data.get_goal_string_by_label(words.at(label.offset / 4 + 1).label_id());
+        auto unique_name = elt_name;
+
+        auto ag_name = obj_unique_name;
+        int elt_index = i;
+        auto& word_master_ag = words.at(label.offset / 4 + 7);
+        auto& word_master_idx = words.at(label.offset / 4 + 8);
+        if (word_master_ag.kind() == LinkedWord::Kind::PTR &&
+            word_master_idx.kind() == LinkedWord::Kind::PLAIN_DATA) {
+          ag_name = obj.linked_data.get_goal_string_by_label(word_master_ag.label_id()) + "-ag";
+          elt_index = word_master_idx.data;
+        }
+
         std::string elt_type = words.at(label.offset / 4 - 1).symbol_name();
-        std::string unique_name = elt_name;
         if (elt_type == "art-joint-geo") {
           // the skeleton!
           unique_name += "-jg";
+          JointGeo jg;
+          jg.offset = label.offset;
+          jg.name = unique_name;
+          jg.length = words.at(label.offset / 4 + 2).data;
+          get_joint_info(db, obj, jg);
         } else if (elt_type == "merc-ctrl" || elt_type == "shadow-geo") {
           // (maybe mesh-geo as well but that doesnt exist)
           // the skin!
@@ -812,15 +985,79 @@ void get_art_info(ObjectFileDB& db, ObjectFileData& obj) {
         } else if (elt_type == "art-joint-anim") {
           // the animations!
           unique_name += "-ja";
+        } else if (elt_type == "art-cloth-geo") {
+          // cloth geometry (jak 3)
+          unique_name += "-cg";
         } else {
           // the something idk!
           throw std::runtime_error(
               fmt::format("unknown art elt type {} in {}", elt_type, obj.to_unique_name()));
         }
-        art_group_elts[i] = unique_name;
-        // lg::print("  {}: {} ({}) -> {}\n", i, elt_name, elt_type, unique_name);
+        // lg::print("  {}: {} ({}) -> {} @ {}\n", i, elt_name, elt_type, unique_name, elt_index);
+        db.dts.add_art_group_elt(ag_name, unique_name, elt_index);
       }
-      db.dts.art_group_info[obj.to_unique_name()] = art_group_elts;
+    }
+  }
+  // jak 3
+  if (obj.obj_version == 5 && obj.linked_data.segments == 1) {
+    const auto& words = obj.linked_data.words_by_seg.at(MAIN_SEGMENT);
+    if (words.at(0).kind() == LinkedWord::Kind::TYPE_PTR &&
+        words.at(0).symbol_name() == "art-group") {
+      auto obj_unique_name = obj.to_unique_name();
+
+      // lg::print("art-group {}:\n", obj.to_unique_name());
+      auto name = obj.linked_data.get_goal_string_by_label(words.at(2).label_id());
+      int length = words.at(3).data;
+      // lg::print("  length: {}\n", length);
+      for (int i = 0; i < length; ++i) {
+        const auto& word = words.at(8 + i);
+        if (word.kind() == LinkedWord::Kind::SYM_PTR && word.symbol_name() == "#f") {
+          continue;
+        }
+        const auto& label = obj.linked_data.labels.at(word.label_id());
+        auto elt_name =
+            obj.linked_data.get_goal_string_by_label(words.at(label.offset / 4 + 1).label_id());
+        auto unique_name = elt_name;
+
+        auto ag_name = obj_unique_name;
+        int elt_index = i;
+        std::string elt_type = words.at(label.offset / 4 - 1).symbol_name();
+        auto& word_master_ag = words.at(label.offset / 4 + 4);
+        auto& word_master_idx = words.at(label.offset / 4 + 5);
+        if (word_master_ag.kind() == LinkedWord::Kind::PTR &&
+            word_master_idx.kind() == LinkedWord::Kind::PLAIN_DATA) {
+          ag_name = obj.linked_data.get_goal_string_by_label(word_master_ag.label_id()) + "-ag";
+          if (elt_type != "art-cloth-geo") {
+            elt_index = word_master_idx.data;
+          }
+        }
+
+        if (elt_type == "art-joint-geo") {
+          // the skeleton!
+          unique_name += "-jg";
+          JointGeo jg;
+          jg.offset = label.offset;
+          jg.name = unique_name;
+          jg.length = words.at(label.offset / 4 + 2).data;
+          get_joint_info(db, obj, jg);
+        } else if (elt_type == "merc-ctrl" || elt_type == "shadow-geo") {
+          // (maybe mesh-geo as well but that doesnt exist)
+          // the skin!
+          unique_name += "-mg";
+        } else if (elt_type == "art-joint-anim") {
+          // the animations!
+          unique_name += "-ja";
+        } else if (elt_type == "art-cloth-geo") {
+          // cloth geometry (jak 3)
+          unique_name += "-cg";
+        } else {
+          // the something idk!
+          throw std::runtime_error(
+              fmt::format("unknown art elt type {} in {}", elt_type, obj.to_unique_name()));
+        }
+        // lg::print("  {}: {} ({}) -> {} @ {}\n", i, elt_name, elt_type, unique_name, elt_index);
+        db.dts.add_art_group_elt(ag_name, unique_name, elt_index);
+      }
     }
   }
 }
@@ -851,22 +1088,39 @@ void ObjectFileDB::dump_art_info(const fs::path& output_dir) {
   lg::info("Writing art group info...");
   Timer timer;
 
-  if (!dts.art_group_info.empty()) {
+  if (!dts.art_group_info.empty() || !dts.jg_info.empty()) {
     file_util::create_dir_if_needed(output_dir / "import");
   }
+
+  auto ag_fpath = output_dir / "import" / "art-elts.gc";
+  std::string ag_result;
+
   for (const auto& [ag_name, info] : dts.art_group_info) {
-    auto ag_fname = ag_name + ".gc";
-    auto filename = output_dir / "import" / ag_fname;
-    std::string result = ";;-*-Lisp-*-\n";
-    result += "(in-package goal)\n\n";
-    result += fmt::format(";; {} - art group OpenGOAL import file\n", ag_fname);
-    result += ";; THIS FILE IS AUTOMATICALLY GENERATED!\n\n";
+    // auto ag_fname = ag_name + ".gc";
+    // auto filename = output_dir / "import" / ag_fname;
+    // std::string result = ";;-*-Lisp-*-\n";
+    // result += "(in-package goal)\n\n";
+    // result += fmt::format(";; {} - art group OpenGOAL import file\n", ag_fname);
+    // result += ";; THIS FILE IS AUTOMATICALLY GENERATED!\n\n";
     for (const auto& [idx, elt_name] : info) {
-      result += print_art_elt_for_dump(ag_name, elt_name, idx);
+      ag_result += print_art_elt_for_dump(ag_name, elt_name, idx);
     }
-    result += "\n";
-    file_util::write_text_file(filename, result);
+    ag_result += "\n";
   }
+
+  file_util::write_text_file(ag_fpath, ag_result);
+
+  auto jg_fpath = output_dir / "import" / "joint-nodes.gc";
+  std::string jg_result;
+
+  for (const auto& [jg_name, info] : dts.jg_info) {
+    for (const auto& [idx, joint] : info) {
+      jg_result += print_jg_for_dump(jg_name, joint, idx);
+    }
+    jg_result += "\n";
+  }
+
+  file_util::write_text_file(jg_fpath, jg_result);
 
   lg::info("Written art group info: in {:.2f} ms", timer.getMs());
 }
@@ -885,5 +1139,14 @@ std::string print_art_elt_for_dump(const std::string& group_name,
                                    const std::string& name,
                                    int idx) {
   return fmt::format("(def-art-elt {} {} {})\n", group_name, name, idx);
+}
+std::string print_jg_for_dump(const std::string& jg_name, const std::string& joint_name, int idx) {
+  return fmt::format("(def-joint-node {} \"{}\" {})\n", jg_name, joint_name, idx);
+}
+std::string print_tpage_for_dump(const std::string& debug_name, u32 id) {
+  return fmt::format("(defconstant {} {})\n", debug_name, id);
+}
+std::string print_tex_for_dump(const std::string& name, const std::string& page_name, u32 idx) {
+  return fmt::format("(def-tex {} {} {})\n", name, page_name, idx);
 }
 }  // namespace decompiler

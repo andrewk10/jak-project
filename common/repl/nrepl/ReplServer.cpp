@@ -2,9 +2,9 @@
 #include "ReplServer.h"
 
 #include "common/cross_sockets/XSocket.h"
-#include "common/versions.h"
+#include "common/versions/versions.h"
 
-#include "third-party/fmt/core.h"
+#include "fmt/core.h"
 
 #ifdef _WIN32
 #define NOMINMAX
@@ -13,12 +13,9 @@
 #include <WinSock2.h>
 #include <WS2tcpip.h>
 #endif
+#include "common/log/log.h"
 // clang-format on
 
-// TODO - basically REPL to listen and inject commands into a running REPL
-// - we will need a C++ side client as well which will let us communicate with the repl via for
-// example, ImgUI
-//
 // TODO - The server also needs to eventually return the result of the evaluation
 
 ReplServer::~ReplServer() {
@@ -30,7 +27,18 @@ ReplServer::~ReplServer() {
 
 void ReplServer::post_init() {
   // Add the listening socket to our set of sockets
-  fmt::print("[nREPL:{}:{}] awaiting connections\n", tcp_port, listening_socket);
+  lg::debug("[nREPL:{}:{}] awaiting connections", tcp_port, listening_socket);
+}
+
+void ReplServer::error_response(int socket, const std::string& error) {
+  std::string msg = fmt::format("[ERROR]: {}", error);
+  auto resp = write_to_socket(socket, msg.c_str(), msg.size());
+  if (resp == -1) {
+    lg::warn("[nREPL:{}] Client Disconnected: {}", tcp_port, address_to_string(addr),
+             ntohs(addr.sin_port), socket);
+    close_socket(socket);
+    client_sockets.erase(socket);
+  }
 }
 
 void ReplServer::ping_response(int socket) {
@@ -38,8 +46,8 @@ void ReplServer::ping_response(int socket) {
                                  versions::GOAL_VERSION_MAJOR, versions::GOAL_VERSION_MINOR);
   auto resp = write_to_socket(socket, ping.c_str(), ping.size());
   if (resp == -1) {
-    fmt::print("[nREPL:{}] Client Disconnected: {}\n", tcp_port, inet_ntoa(addr.sin_addr),
-               ntohs(addr.sin_port), socket);
+    lg::warn("[nREPL:{}] Client Disconnected: {}", tcp_port, address_to_string(addr),
+             ntohs(addr.sin_port), socket);
     close_socket(socket);
     client_sockets.erase(socket);
   }
@@ -51,7 +59,6 @@ std::optional<std::string> ReplServer::get_msg() {
 
   // Add the server's main listening socket (where we accept clients from)
   FD_SET(listening_socket, &read_sockets);
-
   int max_sd = listening_socket;
   for (const int& sock : client_sockets) {
     if (sock > max_sd) {
@@ -63,12 +70,11 @@ std::optional<std::string> ReplServer::get_msg() {
   }
 
   // Wait for activity on _something_, with a timeout so we don't get stuck here on exit.
-  struct timeval timeout;
-  timeout.tv_sec = 0;
-  timeout.tv_usec = 100000;
+  struct timeval timeout = {0, 100000};
   auto activity = select(max_sd + 1, &read_sockets, NULL, NULL, &timeout);
-
-  if (activity < 0) {  // TODO - || error!
+  if (activity < 0 && errno != EINTR) {
+    lg::error("[nREPL:{}] select error, returned: {}, errno: {}", tcp_port, activity,
+              strerror(errno));
     return std::nullopt;
   }
 
@@ -77,63 +83,89 @@ std::optional<std::string> ReplServer::get_msg() {
     socklen_t addr_len = sizeof(addr);
     auto new_socket = accept_socket(listening_socket, (sockaddr*)&addr, &addr_len);
     if (new_socket < 0) {
-      // TODO - handle error
+      if (new_socket != -1) {
+        lg::error("[nREPL:{}] accept error, returned: {}, errono: {}", tcp_port, new_socket,
+                  strerror(errno));
+      }
     } else {
-      fmt::print("[nREPL:{}]: New socket connection: {}:{}:{}\n", tcp_port,
-                 inet_ntoa(addr.sin_addr), ntohs(addr.sin_port), new_socket);
-
+      lg::info("[nREPL:{}]: New socket connection: {}:{}:{}", tcp_port, address_to_string(addr),
+               ntohs(addr.sin_port), new_socket);
       // Say hello
       ping_response(new_socket);
       // Track the new socket
       if ((int)client_sockets.size() < max_clients) {
         client_sockets.insert(new_socket);
       } else {
-        // TODO - Respond with NO
+        // Respond with NO and close the socket
+        lg::warn("[nREPL:{}]: Maximum clients reached. Rejecting connection.", tcp_port);
+        error_response(new_socket, "Maximum clients reached. Rejecting connection.");
+        close_socket(new_socket);
       }
     }
   }
 
-  // otherwise (and no matter what) check all the clients to see if they have sent us anything
-  // else its some IO operation on some other socket
-  //
-  // RACE - the first client wins
-
-  // TODO - there are ways to do this with iterators but, couldn't figure it out!
-  std::vector<int> sockets_to_scan(client_sockets.begin(), client_sockets.end());
-  for (const int& sock : sockets_to_scan) {
+  // Check all clients for activity
+  for (auto it = client_sockets.begin(); it != client_sockets.end();) {
+    int sock = *it;
     if (FD_ISSET(sock, &read_sockets)) {
       // Attempt to read a header
-      // TODO - should this be in a loop?
       auto req_bytes = read_from_socket(sock, header_buffer.data(), header_buffer.size());
-      if (req_bytes == 0) {
-        // Socket disconnected
+      if (req_bytes <= 0) {
         // TODO - add a queue of messages in the REPL::Wrapper so we can print _BEFORE_ the prompt
         // is output
-        fmt::print("[nREPL:{}] Client Disconnected: {}\n", tcp_port, inet_ntoa(addr.sin_addr),
-                   ntohs(addr.sin_port), sock);
-
+        if (req_bytes == 0) {
+          lg::warn("[nREPL:{}] Client Disconnected: {}", tcp_port, address_to_string(addr));
+        } else {
+          lg::warn("[nREPL:{}] Error reading from socket on {}: {}", tcp_port,
+                   address_to_string(addr), strerror(errno));
+        }
         // Cleanup the socket and remove it from our set
         close_socket(sock);
-        client_sockets.erase(sock);
+        it = client_sockets.erase(it);  // Erase and move to the next element
+        continue;
       } else {
         // Otherwise, process the message
         auto* header = (ReplServerHeader*)(header_buffer.data());
         // get the body of the message
         int expected_size = header->length;
         int got = 0;
+        int tries = 0;
+        bool skip_to_next_socket = false;
         while (got < expected_size) {
-          if (got + expected_size > (int)buffer.size()) {
-            fmt::print(stderr,
-                       "[nREPL:{}]: Bad message, aborting the read.  Got :{}, Expected: {}, Buffer "
-                       "Size: {}",
-                       tcp_port, got, expected_size, buffer.size());
-            return std::nullopt;
-          }
-          auto x = read_from_socket(sock, buffer.data() + got, expected_size - got);
           if (want_exit_callback()) {
+            lg::warn("[nREPL:{}] Terminating nREPL early", tcp_port);
             return std::nullopt;
           }
-          got += x > 0 ? x : 0;
+          tries++;
+          if (tries > 100) {
+            break;
+          }
+          if (got + expected_size > (int)buffer.size()) {
+            lg::error(
+                "[nREPL:{}]: Bad message, aborting the read.  Got :{}, Expected: {}, Buffer "
+                "Size: {}",
+                tcp_port, got, expected_size, buffer.size());
+            return std::nullopt;
+          }
+          auto bytes_read = read_from_socket(sock, buffer.data() + got, expected_size - got);
+          if (bytes_read <= 0) {
+            if (bytes_read == 0) {
+              lg::warn("[nREPL:{}] Client Disconnected: {}", tcp_port, address_to_string(addr));
+            } else {
+              lg::warn("[nREPL:{}] Error reading from socket on {}: {}", tcp_port,
+                       address_to_string(addr), strerror(errno));
+            }
+            close_socket(sock);
+            it = client_sockets.erase(it);  // Erase and move to the next element
+            skip_to_next_socket = true;
+            break;
+          }
+          got += bytes_read;
+          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        if (skip_to_next_socket) {
+          continue;
         }
 
         switch (header->type) {
@@ -142,10 +174,12 @@ std::optional<std::string> ReplServer::get_msg() {
             return std::nullopt;
           case ReplServerMessageType::EVAL:
             std::string msg(buffer.data(), header->length);
+            lg::debug("[nREPL:{}] Received Message: {}", tcp_port, msg);
             return std::make_optional(msg);
         }
       }
     }
+    ++it;
   }
   return std::nullopt;
 }

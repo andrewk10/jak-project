@@ -142,7 +142,8 @@ u32 remap_texture(u32 original, const std::vector<level_tools::TextureRemap>& ma
 DrawSettings adgif_to_draw_mode(const AdGifData& ad,
                                 const TextureDB& tdb,
                                 const std::vector<level_tools::TextureRemap>& map,
-                                int count) {
+                                int count,
+                                bool alpha_tpage_flag) {
   // initialize draw mode
   DrawMode current_mode;
   current_mode.set_at(true);
@@ -154,6 +155,14 @@ DrawSettings adgif_to_draw_mode(const AdGifData& ad,
   current_mode.set_depth_write_enable(true);  // todo, is this actual true
   current_mode.set_alpha_blend(DrawMode::AlphaBlend::SRC_SRC_SRC_SRC);
   current_mode.enable_fog();
+  current_mode.set_ab(false);
+
+  if (alpha_tpage_flag) {
+    current_mode.set_alpha_test(DrawMode::AlphaTest::NEVER);
+    current_mode.set_aref(0);
+    current_mode.set_alpha_fail(GsTest::AlphaFail::FB_ONLY);
+    current_mode.set_ab(true);
+  }
 
   // ADGIF 0
   bool weird = (u8)ad.tex0_addr != (u32)GsRegisterAddress::TEX0_1;
@@ -161,7 +170,13 @@ DrawSettings adgif_to_draw_mode(const AdGifData& ad,
     lg::info("----------------  WEIRD: 0x{:x}", ad.tex0_addr);
     lg::info("i have {} verts", count);
   } else {
-    ASSERT(ad.tex0_data == 0 || ad.tex0_data == 0x800000000);  // note: decal?? todo
+    if (ad.tex0_data == 0) {
+      current_mode.set_decal(false);
+    } else if (ad.tex0_data == 0x8'0000'0000) {
+      current_mode.set_decal(true);
+    } else {
+      ASSERT(false);
+    }
   }
 
   // tw/th
@@ -241,7 +256,8 @@ DrawSettings adgif_to_draw_mode(const AdGifData& ad,
 
 ShrubProtoInfo extract_proto(const shrub_types::PrototypeBucketShrub& proto,
                              const TextureDB& tdb,
-                             const std::vector<level_tools::TextureRemap>& map) {
+                             const std::vector<level_tools::TextureRemap>& map,
+                             GameVersion version) {
   ShrubProtoInfo result;
   for (int frag_idx = 0; frag_idx < proto.generic_geom.length; frag_idx++) {
     auto& frag_out = result.frags.emplace_back();
@@ -287,7 +303,11 @@ ShrubProtoInfo extract_proto(const shrub_types::PrototypeBucketShrub& proto,
         ASSERT(3 * (vert_idx + draw.start_vtx_idx) + 3 <= frag.col.size());
       }
 
-      draw.settings = adgif_to_draw_mode(ag, tdb, map, count);
+      bool alpha_tpage_flag = false;
+      if (version > GameVersion::Jak1) {
+        alpha_tpage_flag = proto.flags & 0x4;  // tpage-alpha
+      }
+      draw.settings = adgif_to_draw_mode(ag, tdb, map, count, alpha_tpage_flag);
     }
 
     ASSERT(frag.vtx_cnt * 3 * sizeof(u16) <= frag.vtx.size());
@@ -404,7 +424,8 @@ void make_draws(tfrag3::Level& lev,
   std::vector<std::vector<u32>> indices_regrouped_by_draw;
   std::unordered_map<u32, std::vector<u32>> static_draws_by_tex;
   size_t global_vert_counter = 0;
-  for (auto& proto : protos) {
+  for (u32 proto_idx = 0; proto_idx < protos.size(); proto_idx++) {
+    auto& proto = protos[proto_idx];
     // packed_vert_indices[frag][draw] = {start, end}
     std::vector<std::vector<std::pair<int, int>>> packed_vert_indices;
 
@@ -489,7 +510,9 @@ void make_draws(tfrag3::Level& lev,
           std::vector<u32>* verts_to_add_to = nullptr;
           if (existing_draws_in_tex != static_draws_by_tex.end()) {
             for (auto idx : existing_draws_in_tex->second) {
-              if (tree_out.static_draws.at(idx).mode == mode) {
+              auto& candidate_draw_out = tree_out.static_draws.at(idx);
+              if (candidate_draw_out.mode == mode && (!tree_out.has_per_proto_visibility_toggle ||
+                                                      candidate_draw_out.proto_idx == proto_idx)) {
                 draw_to_add_to = &tree_out.static_draws[idx];
                 verts_to_add_to = &indices_regrouped_by_draw[idx];
               }
@@ -503,6 +526,9 @@ void make_draws(tfrag3::Level& lev,
             draw_to_add_to = &tree_out.static_draws.back();
             draw_to_add_to->mode = mode;
             draw_to_add_to->tree_tex_id = idx_in_lev_data;
+            if (tree_out.has_per_proto_visibility_toggle) {
+              draw_to_add_to->proto_idx = proto_idx;
+            }
             verts_to_add_to = &indices_regrouped_by_draw.emplace_back();
           }
 
@@ -550,12 +576,19 @@ void extract_shrub(const shrub_types::DrawableTreeInstanceShrub* tree,
                    const TextureDB& tex_db,
                    const std::vector<std::pair<int, int>>& /*expected_missing_textures*/,
                    tfrag3::Level& out,
-                   bool dump_level) {
+                   bool dump_level,
+                   GameVersion version) {
   auto& tree_out = out.shrub_trees.emplace_back();
+
+  if (version > GameVersion::Jak1) {
+    tree_out.has_per_proto_visibility_toggle = true;
+  }
+
   auto& protos = tree->info.prototype_inline_array_shrub;
   std::vector<ShrubProtoInfo> proto_info;
   for (auto& proto : protos.data) {
-    proto_info.push_back(extract_proto(proto, tex_db, map));
+    proto_info.push_back(extract_proto(proto, tex_db, map, version));
+    tree_out.proto_names.push_back(proto.name);
   }
 
   for (auto& arr : tree->discovered_arrays) {
@@ -568,13 +601,7 @@ void extract_shrub(const shrub_types::DrawableTreeInstanceShrub* tree,
   }
 
   // time of day colors
-  tree_out.time_of_day_colors.resize(tree->time_of_day.height);
-  for (int k = 0; k < (int)tree->time_of_day.height; k++) {
-    for (int j = 0; j < 8; j++) {
-      memcpy(tree_out.time_of_day_colors[k].rgba[j].data(), &tree->time_of_day.colors[k * 8 + j],
-             4);
-    }
-  }
+  tree_out.time_of_day_colors = pack_colors(tree->time_of_day);
 
   make_draws(out, tree_out, proto_info, tex_db);
 

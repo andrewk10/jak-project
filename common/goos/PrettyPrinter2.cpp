@@ -3,8 +3,8 @@
 #include "common/common_types.h"
 #include "common/util/Assert.h"
 
-#include "third-party/fmt/core.h"
-#include "third-party/fmt/format.h"
+#include "fmt/core.h"
+#include "fmt/format.h"
 
 namespace pretty_print {
 
@@ -237,9 +237,34 @@ void break_list(Node* node) {
   node->top_line_count = 1;
 
   const std::unordered_set<std::string> sameline_splitters = {
-      "if",     "<",  ">",  "<=",       ">=",  "set!",  "=",       "!=",     "+",
-      "-",      "*",  "/",  "the",      "->",  "and",   "or",      "logand", "logior",
-      "logxor", "+!", "*!", "logtest?", "not", "zero?", "nonzero?"};
+      "if",
+      "<",
+      ">",
+      "<=",
+      ">=",
+      "set!",
+      "=",
+      "!=",
+      "+",
+      "-",
+      "*",
+      "/",
+      "the",
+      "->",
+      "and",
+      "or",
+      "logand",
+      "logior",
+      "logxor",
+      "+!",
+      "*!",
+      "logtest?",
+      "not",
+      "zero?",
+      "nonzero?",
+      "dma-buffer-add-gs-set",
+      "dma-buffer-add-gs-set-flusha",
+  };
 
   if (node->child_nodes.at(0).kind == Node::Kind::LIST) {
     // ((foo
@@ -263,10 +288,14 @@ void break_list(Node* node) {
       node->sub_elt_indent += name.size();
     } else if (name == "defmethod") {
       // things with 4 things in the top line: (defmethod <method> <type> <args>
-      node->top_line_count = 4;
+      // or just 3 things in the top line: (defmethod <method> <args>
+      node->top_line_count = 3;
+      if (node->child_nodes.size() >= 4 && node->child_nodes[2].kind == Node::Kind::ATOM) {
+        node->top_line_count = 4;
+      }
     } else if (name == "until" || name == "while" || name == "dotimes" || name == "countdown" ||
                name == "when" || name == "behavior" || name == "lambda" || name == "defpart" ||
-               name == "define") {
+               name == "define" || name == "suspend-for") {
       node->top_line_count = 2;
     } else if (name == "let" || name == "let*" || name == "rlet" ||
                name == "with-dma-buffer-add-bucket") {
@@ -312,9 +341,9 @@ void break_list(Node* node) {
 
 void insert_required_breaks(const std::vector<Node*>& bfs_order) {
   const std::unordered_set<std::string> always_break = {
-      "when",    "defun-debug", "countdown", "case",     "defun",   "defmethod", "let",
-      "until",   "while",       "if",        "dotimes",  "cond",    "else",      "defbehavior",
-      "with-pp", "rlet",        "defstate",  "behavior", "defpart", "loop",      "let*"};
+      "when",     "defun-debug", "countdown", "case", "defun", "defmethod",   "let",     "until",
+      "while",    "if",          "dotimes",   "cond", "else",  "defbehavior", "with-pp", "rlet",
+      "defstate", "behavior",    "defpart",   "loop", "let*",  "suspend-for"};
   for (auto node : bfs_order) {
     if (!node->break_list && node->kind == Node::Kind::LIST &&
         node->child_nodes.at(0).kind == Node::Kind::ATOM) {

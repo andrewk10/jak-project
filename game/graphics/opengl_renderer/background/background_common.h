@@ -4,26 +4,29 @@
 
 #include "game/graphics/opengl_renderer/BucketRenderer.h"
 
-// data passed from game to PC renderers
-// the GOAL code assumes this memory layout.
-struct TfragPcPortData {
+struct GoalBackgroundCameraData {
   math::Vector4f planes[4];
   math::Vector<s32, 4> itimes[4];
   math::Vector4f camera[4];
   math::Vector4f hvdf_off;
   math::Vector4f fog;
-  math::Vector4f cam_trans;
-  char level_name[16];
+  math::Vector4f trans;
+  math::Vector4f rot[4];
+  math::Vector4f perspective[4];
 };
+
+// data passed from game to PC renderers
+// the GOAL code assumes this memory layout.
+struct TfragPcPortData {
+  GoalBackgroundCameraData camera;
+  char level_name[32];
+};
+static_assert(sizeof(TfragPcPortData) == 16 * 25);
 
 // inputs to background renderers.
 struct TfragRenderSettings {
-  math::Matrix4f math_camera;
-  math::Vector4f hvdf_offset;
-  math::Vector4f fog;
+  GoalBackgroundCameraData camera;
   int tree_idx;
-  math::Vector<s32, 4> itimes[4];
-  math::Vector4f planes[4];
   bool debug_culling = false;
   const u8* occlusion_culling = nullptr;
 };
@@ -40,24 +43,13 @@ struct DoubleDraw {
 DoubleDraw setup_tfrag_shader(SharedRenderState* render_state, DrawMode mode, ShaderId shader);
 DoubleDraw setup_opengl_from_draw_mode(DrawMode mode, u32 tex_unit, bool mipmap);
 
-void first_tfrag_draw_setup(const TfragRenderSettings& settings,
+void first_tfrag_draw_setup(const GoalBackgroundCameraData& settings,
                             SharedRenderState* render_state,
                             ShaderId shader);
 
-void interp_time_of_day_slow(const math::Vector<s32, 4> itimes[4],
-                             const std::vector<tfrag3::TimeOfDayColor>& in,
-                             math::Vector<u8, 4>* out);
-
-struct SwizzledTimeOfDay {
-  std::vector<u8> data;
-  u32 color_count = 0;
-};
-
-SwizzledTimeOfDay swizzle_time_of_day(const std::vector<tfrag3::TimeOfDayColor>& in);
-
-void interp_time_of_day_fast(const math::Vector<s32, 4> itimes[4],
-                             const SwizzledTimeOfDay& swizzled_colors,
-                             math::Vector<u8, 4>* out);
+void interp_time_of_day(const math::Vector<s32, 4> itimes[4],
+                        const tfrag3::PackedTimeOfDay& packed_colors,
+                        math::Vector<u8, 4>* out);
 
 void cull_check_all_slow(const math::Vector4f* planes,
                          const std::vector<tfrag3::VisNode>& nodes,
